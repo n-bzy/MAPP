@@ -20,41 +20,46 @@ random samples {st,at,rt,st+1}∈ experience_replay_buffer
         st=st+1
 '''
 
-from DQN import DQN 
-import numpy as np
 import gymnasium as gym
-import tensorflow as tf
+from Experience_Replay_Buffer import ExperienceReplayBuffer
+from Agent import Agent
 
-
-num_actions = 6 
-n = 50 # size of experience_replay_buffer: e.g. 2000
-m = 30 # amount of samples 
-gamma = 0.95 #discount fator
 
 # instantiate environment
 env_name = 'ALE/Pong-v5' 
-env = gym.make(env_name)
+env = gym.make(env_name) #render_mode = 'human')
+
+num_actions = 6 #env.action_space
+m = 500 # amount of training samples
+timesteps = 300 # amount of samples to fill ERP with after the its filled up once
 
 # instantiate q_network
-Q_net = DQN(num_actions)  
+Q_net = Agent(num_actions)
+Q_net.update_delay_target_network()
 
-experience_replay_buffer = [] 
+experience_replay_buffer =  ExperienceReplayBuffer(size = 1000) 
+
+reward_per_episode = []
 
 for episode in range(10):
-   observation, _ = env.reset() # state = observation
-   #env.render()
-   for timestep in range(n):
-      observation_t = observation # observation_t represents state_t 
-      action =  np.argmax(Q_net(observation_t)) #this is greedy for now, should be epsilon-greedy
-      observation, reward, terminated, truncated, info = env.step(action) 
-      experience_replay_buffer.append([observation_t, action, reward, observation]) 
+
+   reward_of_episode = experience_replay_buffer.fill(environment = env, Q_net = Q_net, timesteps = timesteps)
+   #reward = sum([reward[2] for reward in experience_replay_buffer.experience_replay_buffer]) #der summiert gerade über alle anstatt nur den Neuen
+
    for amount_of_samples in range(m):
-      sample = experience_replay_buffer[np.random.randint(n)] 
-      q_values = Q_net(sample[3])
-      max_q_value = tf.math.top_k(q_values, k=1, sorted=True) 
-      q_target = sample[2] + gamma * max_q_value.values.numpy() 
-      Q_net.train(sample[0], q_target)
-   print(f'done with epsiode {episode}')
+      sample = experience_replay_buffer.sample()
+      q_target = Q_net.q_target(sample)
+      Q_net.network.train(sample[0], q_target)
+      
+   Q_net.update_delay_target_network()
+
+   reward_per_episode.append(reward_of_episode)
+
+   print(f'done with epsiode {episode} with reward {reward_of_episode}')
+
+
+
+
 
 
 

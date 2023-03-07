@@ -12,9 +12,9 @@ class DQN(tf.keras.layers.Layer):
 
         self.metrics_list = [tf.keras.metrics.Mean(name="loss")]
         
-        self.q_net = [tf.keras.layers.Conv2D(filters=24, kernel_size=3, padding='same', activation='relu'), 
+        self.q_net = [tf.keras.layers.Conv2D(filters=256, kernel_size=3, padding='same', activation='relu'), 
                       tf.keras.layers.MaxPool2D(),
-                      tf.keras.layers.Conv2D(filters=24, kernel_size=3, padding='same', activation='relu'),
+                      tf.keras.layers.Conv2D(filters=256, kernel_size=3, padding='same', activation='relu'),
                       tf.keras.layers.GlobalMaxPool2D(),
                       tf.keras.layers.Dense(self.num_actions,
                                             activation=None,
@@ -31,14 +31,22 @@ class DQN(tf.keras.layers.Layer):
             kernel_initializer=tf.keras.initializers.VarianceScaling(
                 scale=2.0, mode='fan_in', distribution='truncated_normal'))"""
     
-    def call(self, x, training = False): # x is observation/ state of the environment
+    def call(self, x, training = False):
+        """
+        Predicts Q-values (expected rewards) for each action. 
+
+        Parameters:
+            x (ndarray): observation
+            training (boole): enables to train the network 
+
+        Returns: 
+            x (ndarray): Q-values
+        """
         x = tf.cast(tf.expand_dims(x, 0), tf.float32) / 256.
         for layer in self.q_net:
-            x = layer(x) 
-        q_values = x
-        return q_values 
+            x = layer(x)
+        return x
     
-
     def reset_metrics(self):
 
         for metric in self.metrics:
@@ -46,6 +54,13 @@ class DQN(tf.keras.layers.Layer):
 
     @tf.function
     def train(self, observation, target): 
+        """
+        Trains the network via backpropagation.
+
+        Parameters: 
+            observation (ndarray): the state of the environment
+            target (float): expected reward from "optimal" action
+        """
 
         with tf.GradientTape() as tape:
             predictions = self(observation, training=True)
