@@ -12,10 +12,13 @@ class DQN(tf.keras.layers.Layer):
 
         self.metrics_list = [tf.keras.metrics.Mean(name="loss")]
         
-        self.q_net = [tf.keras.layers.Conv2D(filters=256, kernel_size=3, padding='same', activation='relu'), 
-                      tf.keras.layers.MaxPool2D(),
-                      tf.keras.layers.Conv2D(filters=256, kernel_size=3, padding='same', activation='relu'),
+        self.q_net = [tf.keras.layers.Conv2D(filters=32, kernel_size=8, strides = 4, padding='same', activation='relu'), 
+                      #tf.keras.layers.MaxPool2D(),
+                      tf.keras.layers.Conv2D(filters=64, kernel_size=4, strides = 2, padding='same', activation='relu'),
+                      #tf.keras.layers.MaxPool2D(),
+                      tf.keras.layers.Conv2D(filters=64, kernel_size=3, padding='same', activation='relu'),
                       tf.keras.layers.GlobalMaxPool2D(),
+                      tf.keras.layers.Dense(512),
                       tf.keras.layers.Dense(self.num_actions,
                                             activation=None,
                                             kernel_initializer=tf.keras.initializers.RandomUniform(minval=-0.03, maxval=0.03),
