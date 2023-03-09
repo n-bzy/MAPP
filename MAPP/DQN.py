@@ -13,9 +13,9 @@ class DQN(tf.keras.layers.Layer):
         self.metrics_list = [tf.keras.metrics.Mean(name="loss")]
         
         self.q_net = [tf.keras.layers.Conv2D(filters=32, kernel_size=8, strides = 4, padding='same', activation='relu'), 
-                      #tf.keras.layers.MaxPool2D(),
+                      tf.keras.layers.MaxPool2D(),
                       tf.keras.layers.Conv2D(filters=64, kernel_size=4, strides = 2, padding='same', activation='relu'),
-                      #tf.keras.layers.MaxPool2D(),
+                      tf.keras.layers.MaxPool2D(),
                       tf.keras.layers.Conv2D(filters=64, kernel_size=3, padding='same', activation='relu'),
                       tf.keras.layers.GlobalMaxPool2D(),
                       tf.keras.layers.Dense(512),
@@ -45,7 +45,7 @@ class DQN(tf.keras.layers.Layer):
         Returns: 
             x (ndarray): Q-values
         """
-        x = tf.cast(tf.expand_dims(x, 0), tf.float32) / 256.
+        x = tf.cast(x, tf.float32) / 256.
         for layer in self.q_net:
             x = layer(x)
         return x
