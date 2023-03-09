@@ -1,9 +1,11 @@
 import tensorflow as tf
 import numpy as np
 from DQN import DQN
+import ModifiedTensorBoard
+import time
 
 class Agent(tf.keras.layers.Layer):
-    def __init__(self, num_actions, num_environments):
+    def __init__(self, num_actions, num_environments, model_name):
         super().__init__()
 
         self.network = DQN(num_actions) 
@@ -13,6 +15,8 @@ class Agent(tf.keras.layers.Layer):
 
         self.num_environments = num_environments
         self.num_actions = num_actions
+
+        self.tensorboard = ModifiedTensorBoard.ModifiedTensorBoard(log_dir="logs/{}-{}".format(model_name, int(time.time())))
 
     def call(self, x, training = False):
         """
