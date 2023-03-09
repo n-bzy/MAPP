@@ -45,7 +45,7 @@ class Agent(tf.keras.layers.Layer):
         action = [np.argmax(q_values[i]) if np.random.rand() > epsilon else np.random.randint(self.num_actions) for i in range(self.num_environments)]
         return action
     
-    def fill(self, environments, timesteps, ERP):
+    def fill(self, environments, timesteps, ERP, epsilon):
         """
         Fill up the Experience Replay Buffer with samples from the environment. The whole one in the first episode, afterward replace #timesteps samples.
 
@@ -64,7 +64,7 @@ class Agent(tf.keras.layers.Layer):
 
         reward_of_episode = [0] * len(environments)
         for _ in range(timesteps):
-            action =  self.epsilon_greedy_sampling(observation = observation, epsilon = 0.05)
+            action =  self.epsilon_greedy_sampling(observation = observation, epsilon = epsilon)
 
             batch = []
             for i in range(len(environments)):

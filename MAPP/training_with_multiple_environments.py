@@ -16,6 +16,11 @@ EPISODES = 20_000
 ERP_size = 100
 MODEL_NAME = "SinglePong" # used for saving and logging
 
+# Exploration settings
+epsilon = 1  # not a constant, going to be decayed
+EPSILON_DECAY = 0.99975
+MIN_EPSILON = 0.001
+
 # instantiate environments
 env_name = 'ALE/Pong-v5' 
 environments = [gym.make(env_name) for _ in range(num_environments)] #render_mode = 'human')
@@ -31,7 +36,7 @@ reward_per_episode = []
 for episode in range(EPISODES):
 
    # do a step function in every Environment, fill the ERP and collect a list of rewards (one for each in the list of environments)
-   reward_of_episode = Q_net.fill(environments, timesteps, ERP)
+   reward_of_episode = Q_net.fill(environments, timesteps, ERP, epsilon)
 
    for amount_of_samples in range(m):
       sample = ERP.sample()
@@ -56,6 +61,11 @@ for episode in range(EPISODES):
       if min_reward >= MIN_REWARD:
          Q_net.model.save(
             f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+
+   # decay epsilon
+   if epsilon > MIN_EPSILON:
+      epsilon *= EPSILON_DECAY
+      epsilon = max(MIN_EPSILON, epsilon)
 
    # we should consider printing only the average of the rewards
    print(f'done with epsiode {episode} with reward {reward_of_episode}') 
