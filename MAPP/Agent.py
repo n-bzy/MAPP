@@ -50,7 +50,7 @@ class Agent(tf.keras.layers.Layer):
         Fill up the Experience Replay Buffer with samples from the environment. The whole one in the first episode, afterward replace #timesteps samples.
 
         Parameters: 
-            environment (gymnasium): the environment to get observations, take actions and get reward 
+            environments (gymnasium): the environment to get observations, take actions and get reward
             timesteps (int): amount of new samples 
             ERP (Experience_Replay_Buffer): store the samples of size num_environments filled with 
                             [observation_t, action, reward, observation]
@@ -81,7 +81,66 @@ class Agent(tf.keras.layers.Layer):
 
         return reward_of_episode
 
-    
+
+    # started writing a specific fill method for the multi agent case
+    # this doesn't include a section for filling the ERP at the beginning.
+    # I thought we can do that in a seperate function maybe.
+    def multi_agent_fill(self, env, ERP, epsilon):
+
+        observations = env.reset()
+        reward_of_episode = [0] * len(2) # currently hard coded for the amount of agents we have
+
+        # Initialize the episode rewards and done flags for each agent
+        dones = {agent: False for agent in env.agents}
+        i = 0
+
+        while not all(dones.values()):
+            action = self.epsilon_greedy_sampling(observation = observations, epsilon = epsilon)
+
+            batch = []
+            next_observation, reward, dones, info = env.step(action)
+            reward_of_episode[i] += reward
+            batch.append([observations[i], action, reward, next_observation])
+            observations[i] = next_observation
+
+            ERP.experience_replay_buffer[ERP.index] = batch
+            ERP.index += 1
+            if ERP.index == ERP.size:
+                ERP.index = 0
+            i = (i +1) % 2 # hard coded for two agents again
+        return reward_of_episode
+
+    # currently just for the multi-agent case as a replacement for the way it is handled in the single-agent fill method
+    # number_of_entries should be smaller than the max size of the ERP!
+    # this doesn't really look better than putting everything in the same function though...
+    # too much duplication of code to feel cleaner, tbh.
+    def fill_ERP(self, env, ERP, epsilon, number_of_entries):
+
+        filled = False
+        while not filled:
+            observations = env.reset()
+            dones = {agent: False for agent in env.agents}
+            i = 0
+
+            while not all(dones.values()):
+                action = self.epsilon_greedy_sampling(observation = observations, epsilon = epsilon)
+
+                batch = []
+                next_observation, reward, dones, info = env.step(action)
+                batch.append([observations[i], action, reward, next_observation])
+                observations[i] = next_observation
+
+                ERP.experience_replay_buffer[ERP.index] = batch
+                ERP.index += 1
+                if ERP.index == ERP.size:
+                    ERP.index = 0
+                i = (i +1) % 2 # hard coded for two agents again
+
+            if ERP.size >= number_of_entries:
+                filled = True
+
+
+
     
     
     def q_target(self, sample, discount_factor = 0.95):

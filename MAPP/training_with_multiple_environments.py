@@ -5,15 +5,15 @@ import time
 import numpy as np
 
 
-num_environments = 32 # 32 takes a long time for even one episode. Maybe we should lower that
+num_environments = 8 # 32 takes a long time for even one episode. Maybe we should lower that
 num_actions = 6 #env.action_space shouldn't we then also set use_full_action_space=False ?
-m = 50 # amount of training samples
+m = 1000 # amount of training samples
 # timesteps need to be large enough otherwise the agent don't have enough time to play a full game. The for-loop should be stopped by the done flag before this runs out
 timesteps = 5000 # amount of samples to fill ERP with after the its filled up once
 AGGREGATE_STATS_EVERY = 50 # get and safe stats every n episodes
 MIN_REWARD = 0 # safe model only when the lowest reward of model over the last n episodes reaches a threshold
 EPISODES = 20_000
-ERP_size = 100
+ERP_size = 20_000
 MODEL_NAME = "SinglePong" # used for saving and logging
 
 # Exploration settings
@@ -22,14 +22,22 @@ EPSILON_DECAY = 0.99975
 MIN_EPSILON = 0.001
 
 # instantiate environments
-env_name = 'ALE/Pong-v5' 
-environments = [gym.make(env_name) for _ in range(num_environments)] #render_mode = 'human')
+import gymnasium.wrappers as gw
+
+def create_env():
+   env = gym.make('ALE/Pong-v5') 
+   env = gw.ResizeObservation(env, 84)
+   env = gw.GrayScaleObservation(env, keep_dim=True)
+   env = gw.FrameStack(env, 4)
+   return env
+
+environments = [create_env() for _ in range(num_environments)] #render_mode = 'human')
 
 # instantiate q_network
 Q_net = Agent(num_actions, num_environments, MODEL_NAME)
 Q_net.update_delay_target_network()
 
-ERP =  ExperienceReplayBuffer(size = ERP_size)
+ERP = ExperienceReplayBuffer(size = ERP_size)
 
 reward_per_episode = []
 
