@@ -1,16 +1,13 @@
 from pettingzoo.atari import pong_v3
 import numpy as np
-import tensorflow as tf
 from Experience_Replay_Buffer import ExperienceReplayBuffer
-from Agent import Agent
+from MARL_Agent import MARL_Agent
 import time
 
-num_environments = 1 # 32 takes a long time for even one episode. Maybe we should lower that
 num_actions = 6 #env.action_space shouldn't we then also set use_full_action_space=False ?
-m = 1000 # amount of training samples
-# timesteps need to be large enough otherwise the agent don't have enough time to play a full game. The for-loop should be stopped by the done flag before this runs out
-timesteps = 5000 # amount of samples to fill ERP with after the its filled up once
+NUM_TRAINING_SAMPLES = 1000 # amount of training samples
 AGGREGATE_STATS_EVERY = 50 # get and safe stats every n episodes
+UPDATE_TARGET_EVERY = 5 # update the target network every n episodes
 MIN_REWARD = 0 # safe model only when the lowest reward of model over the last n episodes reaches a threshold
 EPISODES = 20_000
 ERP_size = 20_000
@@ -24,33 +21,45 @@ MIN_EPSILON = 0.001
 
 
 env = pong_v3.env(num_players=2, render_mode = "human", max_cycles = 125000)
-Q_net = Agent(num_actions, num_environments, MODEL_NAME)
-Q_net.update_delay_target_network()
+# I don't think I need any of the special Agent functionality that I can't get from a single DQN_class
+Q_net = MARL_Agent(num_actions, MODEL_NAME)
 
+#FIXME: check how new ERPS work
 ERP = ExperienceReplayBuffer(size = ERP_size)
 
 reward_per_episode = []
 
 # sperate function to fill ERP before starting the episodes
-Q_net.fill_ERP(env, ERP, epsilon, MINIMUM_ERP_SIZE)
+#Q_net.fill_ERP(env, ERP, epsilon, MINIMUM_ERP_SIZE)
 
 for episode in range(EPISODES):
 
-    # do a step function in every Environment, fill the ERP and collect a list of rewards (one for each in the list of environments)
-    reward_of_episode = Q_net.multi_agent_fill(env, ERP, epsilon)
+    env.reset() # every episode?
+    episode_reward = [0,0] # to keep track of the reward of both agents in a single episode
+    a = 0
 
-    for amount_of_samples in range(m):
-        sample = ERP.sample()
-        q_target = Q_net.q_target(sample)
-        observations = [sample[0] for sample in sample]
-        Q_net.network.train(observations, q_target)
+    while env.agents:
+        for agent in env.agent_iter():
+            observation, reward, termination, truncation, info = env.last()
+            action = Q_net.epsilon_greedy_sampling(observation, epsilon)
+            env.step(action)
+            episode_reward[a%2] = episode_reward[a%2] + reward # only works with two agents
 
-    # should we update this every episode?
-    Q_net.update_delay_target_network()
+
+
+    # skip the training until the ERP is filled with enough values
+    if ERP.size >= MINIMUM_ERP_SIZE:
+        Q_net.training(NUM_TRAINING_SAMPLES, ERP) # also to be implemented
+
+    # the target network only gets updated every few episodes
+    if not episode % UPDATE_TARGET_EVERY:
+        Q_net.update_delay_target_network()
 
     # In the MARL case we should probably safe the rewards for every agent separately
     # so we need to update this at some point
-    reward_per_episode.append(np.mean(reward_of_episode))
+    # with parameter sharing, it shouldn't make a difference which agent got which reward
+    # might still be good to catch irregularities
+    reward_per_episode.append(np.mean(episode_reward))
 
     # every n episodes this safes the average and min / max rewards of these episodes to the tensorboard
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
@@ -64,10 +73,11 @@ for episode in range(EPISODES):
             Q_net.model.save(
                 f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
-    # decay epsilon
-    if epsilon > MIN_EPSILON:
-        epsilon *= EPSILON_DECAY
-        epsilon = max(MIN_EPSILON, epsilon)
+    # decay epsilon only when ERP is filled enough
+    if ERP_size >= MINIMUM_ERP_SIZE:
+        if epsilon > MIN_EPSILON:
+            epsilon *= EPSILON_DECAY
+            epsilon = max(MIN_EPSILON, epsilon)
 
     # we should consider printing only the average of the rewards
-    print(f'done with epsiode {episode} with reward {reward_of_episode}')
+    print(f'done with epsiode {episode} with reward {episode_reward}')
