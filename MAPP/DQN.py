@@ -24,6 +24,18 @@ class DQN(tf.keras.layers.Layer):
                                             activation=None,
                                             kernel_initializer=tf.keras.initializers.RandomUniform(minval=-0.03, maxval=0.03),
                                             bias_initializer=tf.keras.initializers.Constant(-0.2))] #last is q_values layer
+        
+        '''self.q_net = [tf.keras.layers.Conv2D(filters=32, kernel_size=8, strides = 4, padding='same', activation='relu'), 
+                      tf.keras.layers.MaxPool2D(),
+                      tf.keras.layers.Conv2D(filters=64, kernel_size=4, strides = 2, padding='same', activation='relu'),
+                      tf.keras.layers.MaxPool2D(),
+                      tf.keras.layers.Conv2D(filters=64, kernel_size=3, padding='same', activation='relu'),
+                      tf.keras.layers.GlobalMaxPool2D(),
+                      tf.keras.layers.Dense(512),
+                      tf.keras.layers.Dense(self.num_actions,
+                                            activation=None,
+                                            kernel_initializer=tf.keras.initializers.RandomUniform(minval=-0.03, maxval=0.03),
+                                            bias_initializer=tf.keras.initializers.Constant(-0.2))] #last is q_values layer'''
 
     """# Define a helper function to create Dense layers configured with the right
     # activation and kernel initializer.
@@ -46,7 +58,6 @@ class DQN(tf.keras.layers.Layer):
         Returns: 
             x (ndarray): Q-values
         """
-        x = tf.cast(x, tf.float32) / 256.
         for layer in self.q_net:
             x = layer(x)
         return x
@@ -67,8 +78,9 @@ class DQN(tf.keras.layers.Layer):
         """
 
         with tf.GradientTape() as tape:
-            predictions = self(observation, training=True)
-            loss = self.loss(target, predictions)
+            predictions = self(observation, training=True) # type predictions:  <class 'tensorflow.python.framework.ops.Tensor'>
+            loss = self.loss(target, predictions) # type loss  <class 'tensorflow.python.framework.ops.Tensor'>
+
       
         gradients = tape.gradient(loss, self.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
