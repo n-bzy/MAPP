@@ -32,8 +32,8 @@ for episode in range(EPISODES):
     def training(Q_net, data):
         for batch in data:
             q_target = q_target_array(Q_net, batch)
-            obs, _, _, _ = batch
-            Q_net.network.train(obs, q_target)
+            obs, action, _, _ = batch
+            Q_net.network.train(obs, action, q_target)
             
         Q_net.update_delay_target_network()
 

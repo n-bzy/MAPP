@@ -69,7 +69,7 @@ class DQN(tf.keras.layers.Layer):
             metric.reset_states()
 
     @tf.function
-    def train(self, observation, target): 
+    def train(self, observation, action, target): 
         """
         Trains the network via backpropagation.
 
@@ -80,7 +80,7 @@ class DQN(tf.keras.layers.Layer):
 
         with tf.GradientTape() as tape:
             predictions = self(observation, training=True) # type predictions:  <class 'tensorflow.python.framework.ops.Tensor'>
-            predictions = tf.math.reduce_max(predictions, axis = 1)
+            predictions = tf.gather(predictions, action, axis = 1, batch_dims=1)
             loss = self.loss(target, predictions) # type loss  <class 'tensorflow.python.framework.ops.Tensor'>
 
       
