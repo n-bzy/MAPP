@@ -41,7 +41,7 @@ class Agent(tf.keras.layers.Layer):
         Returns:
             action (int): either action with highest Q-value (exploitation) or random action (exploration)
         """
-        q_values = self(observation)
+        q_values = self(tf.expand_dims(observation,0))
         action = [np.argmax(q_values[i]) if np.random.rand() > epsilon else np.random.randint(self.num_actions) for i in range(self.num_environments)]
         return action
     
@@ -102,9 +102,10 @@ class Agent(tf.keras.layers.Layer):
             reward_of_epsiode (int): reward of this episode
         """
         reward_of_episode = 0
+        ERP.index = 0
 
         ERP.observation[ERP.index] = environment.reset()[0] # do we need this every time?????????????????????????????????????
-        ERP.observation[ERP.index] = ERP.preprocessing(ERP.observation[ERP.index])
+        #ERP.observation[ERP.index] = ERP.preprocessing(ERP.observation[ERP.index])
         for i in range(timesteps):
             if i > 0:
                 ERP.observation[ERP.index] = ERP.next_observation[ERP.index - 1]
@@ -113,15 +114,16 @@ class Agent(tf.keras.layers.Layer):
             #print(type(ERP.action[ERP.index]))
 
             ERP.next_observation[ERP.index], ERP.reward[ERP.index], terminated, truncated, info = environment.step(ERP.action[ERP.index])
-            ERP.next_observation[ERP.index] = ERP.preprocessing(ERP.next_observation[ERP.index])
+            #ERP.next_observation[ERP.index] = ERP.preprocessing(ERP.next_observation[ERP.index])
             reward_of_episode += ERP.reward[ERP.index]
 
             if truncated == True or terminated == True:
                 break
 
             ERP.index += 1
-            if ERP.index == ERP.size:
-                ERP.index = 0
+            #if ERP.index == ERP.size:
+            #    ERP.index = 0
+        ERP.index = 0
             
         return reward_of_episode
     
@@ -131,7 +133,7 @@ class Agent(tf.keras.layers.Layer):
         Fill up the Experience Replay Buffer of each environment with samples from the environment.
 
         Parameters: 
-            num_environments (int): amoutn of environments
+            num_environments (int): amount of environments
             environments (list): environments contains num_environments environments (gymnasium) to get observations, take actions and get reward
             timesteps (int): amount of new samples 
             ERPs (list): ERPs contains an experience replay buffer (Experience_Replay_Buffer)for each environment
@@ -140,17 +142,20 @@ class Agent(tf.keras.layers.Layer):
         Returns: 
             reward_of_epsiode (list): reward of this episode in each environment 
         """
+        start = time.time()
         reward_of_episode = np.zeros(shape=(self.num_environments))
 
         for i in range(self.num_environments):
             ERPs[i].observation[ERPs[i].index] = ERPs[i].preprocessing(environments[i].reset()[0])
 
         for i in range(timesteps):
+            
             if i > 0:
                 for i in range(self.num_environments):
                     ERPs[i].observation[ERPs[i].index] = ERPs[i].next_observation[ERPs[i].index - 1]
-            observations = tf.stack([ERPs[i].observation[ERPs[i].index] for i in range(self.num_environments)]) #shape = (num_environments, 4, 84, 84, 1)
             
+            observations = np.stack([ERPs[i].observation[ERPs[i].index] for i in range(self.num_environments)]) #shape = (num_environments, 4, 84, 84, 1)
+
             actions =  self.epsilon_greedy_sampling(observation = observations, epsilon = epsilon)
 
             for i in range(self.num_environments):
@@ -165,73 +170,13 @@ class Agent(tf.keras.layers.Layer):
                 ERPs[i].index += 1
                 if ERPs[i].index == ERPs[i].size:
                     ERPs[i].index = 0
+            
 
+        end = time.time()
+        print("Dauer replace samples in ERP: ", end-start)
         print(f"{timesteps} samples replaced in every ERP")
             
         return reward_of_episode
-
-
-    # started writing a specific fill method for the multi agent case
-    # this doesn't include a section for filling the ERP at the beginning.
-    # I thought we can do that in a seperate function maybe.
-    def multi_agent_fill(self, env, ERP, epsilon):
-
-        observations = env.reset()
-        reward_of_episode = [0] * len(2) # currently hard coded for the amount of agents we have
-
-        # Initialize the episode rewards and done flags for each agent
-        dones = {agent: False for agent in env.agents}
-        i = 0
-
-        while not all(dones.values()):
-            action = self.epsilon_greedy_sampling(observation = observations, epsilon = epsilon)
-
-            batch = []
-            next_observation, reward, dones, info = env.step(action)
-            reward_of_episode[i] += reward
-            batch.append([observations[i], action, reward, next_observation])
-            observations[i] = next_observation
-
-            ERP.experience_replay_buffer[ERP.index] = batch
-            ERP.index += 1
-            if ERP.index == ERP.size:
-                ERP.index = 0
-            i = (i +1) % 2 # hard coded for two agents again
-        return reward_of_episode
-
-    # currently just for the multi-agent case as a replacement for the way it is handled in the single-agent fill method
-    # number_of_entries should be smaller than the max size of the ERP!
-    # this doesn't really look better than putting everything in the same function though...
-    # too much duplication of code to feel cleaner, tbh.
-    def fill_ERP(self, env, ERP, epsilon, number_of_entries):
-
-        filled = False
-        while not filled:
-            observations = env.reset()
-            dones = {agent: False for agent in env.agents}
-            i = 0
-
-            while not all(dones.values()):
-                action = self.epsilon_greedy_sampling(observation = observations, epsilon = epsilon)
-
-                batch = []
-                next_observation, reward, dones, info = env.step(action)
-                batch.append([observations[i], action, reward, next_observation])
-                observations[i] = next_observation
-
-                ERP.experience_replay_buffer[ERP.index] = batch
-                ERP.index += 1
-                if ERP.index == ERP.size:
-                    ERP.index = 0
-                i = (i +1) % 2 # hard coded for two agents again
-
-            if ERP.size >= number_of_entries:
-                filled = True
-
-
-
-
-
     
     
     def q_target(self, sample, discount_factor = 0.95):
@@ -267,7 +212,7 @@ class Agent(tf.keras.layers.Layer):
         observation = ERP.observation[sample_number]
         reward = ERP.reward[sample_number]
 
-        q_values = self.delay_target_network(observation)
+        q_values = self.delay_target_network(observation) #no time_distributed leaves shape = (4,6), mit time_distirbuted shape = (1,6)
         max_q_value = tf.math.top_k(q_values, k=1, sorted=True)
         q_target = reward + discount_factor * max_q_value.values.numpy()
         return q_target
@@ -286,7 +231,7 @@ class Agent(tf.keras.layers.Layer):
         Returns: 
             q_target (float): expected reward from "optimal" action 
         """
-        observation = tf.stack([ERPs[i].observation[sample_numbers[i]] for i in range(self.num_environments)])
+        observation = np.stack([ERPs[i].observation[sample_numbers[i]] for i in range(self.num_environments)])
         reward = [ERPs[i].reward[sample_numbers[i]] for i in range(self.num_environments)]
 
         q_values = self.delay_target_network(observation)
@@ -316,7 +261,7 @@ class Agent(tf.keras.layers.Layer):
         for _ in range(num_training_samples):
             sample_numbers = [ERP.sample() for ERP in ERPs]
             q_target = self.q_target_multiple_environments(ERPs, sample_numbers, discount_factor = 0.95)
-            observations = tf.stack([ERPs[i].observation[sample_numbers[i]] for i in range(self.num_environments)])
+            observations = np.stack([ERPs[i].observation[sample_numbers[i]] for i in range(self.num_environments)])
             self.network.train(observations, q_target)
 
         # should we update this every episode?

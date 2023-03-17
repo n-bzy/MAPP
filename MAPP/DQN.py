@@ -58,6 +58,7 @@ class DQN(tf.keras.layers.Layer):
         Returns: 
             x (ndarray): Q-values
         """
+        #x = tf.expand_dims(x,0)
         for layer in self.q_net:
             x = layer(x)
         return x
@@ -79,6 +80,7 @@ class DQN(tf.keras.layers.Layer):
 
         with tf.GradientTape() as tape:
             predictions = self(observation, training=True) # type predictions:  <class 'tensorflow.python.framework.ops.Tensor'>
+            predictions = tf.math.reduce_max(predictions, axis = 1)
             loss = self.loss(target, predictions) # type loss  <class 'tensorflow.python.framework.ops.Tensor'>
 
       
