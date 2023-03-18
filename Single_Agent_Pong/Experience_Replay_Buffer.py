@@ -5,7 +5,7 @@ class ExperienceReplayBuffer():
     def __init__(self, size): 
 
         self.size = size 
-        self.experience_replay_buffer = None 
+        self.experience_replay_buffer = None
         self.observation = np.ndarray(shape=(self.size, 4, 84, 84, 1), dtype=np.float32)
         self.action = np.ndarray(shape = (self.size, ), dtype=np.int64)
         self.reward = np.ndarray(shape = (self.size, ))
@@ -40,6 +40,11 @@ class ExperienceReplayBuffer():
 
         data = tf.data.Dataset.zip((observations, actions, rewards, next_observations))
         data = data.map(lambda x,y,z,t: (tf.cast(x, tf.float32)  / 256., y, tf.cast(z, tf.float32), tf.cast(t, tf.float32) / 256.))
-        data = data.cache().batch(128).shuffle(500).prefetch(tf.data.AUTOTUNE) #wann batchen wir??? erst und dann shuffle oder so wie es jetzt ist????
+        data = data.cache().shuffle(500).batch(32).prefetch(tf.data.AUTOTUNE) #wann batchen wir??? erst und dann shuffle oder so wie es jetzt ist????
 
         return data
+    
+    def set_index(self):
+        self.index += 1
+        if self.index == self.size:
+            self.index = 0

@@ -57,10 +57,9 @@ class DQN(tf.keras.layers.Layer):
 
         with tf.GradientTape() as tape:
             predictions = self(observation, training=True)
-            predictions = tf.gather(predictions, action, axis = 1, batch_dims=1)
+            predictions = tf.gather(predictions, action, axis = 1, batch_dims=1) #* 265.
             loss = self.loss(target, predictions) 
 
-      
         gradients = tape.gradient(loss, self.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
       

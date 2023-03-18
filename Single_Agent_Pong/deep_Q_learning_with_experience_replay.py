@@ -17,7 +17,6 @@ Q_net.update_delay_target_network()
 ERP =  ExperienceReplayBuffer(size = TIMESTEPS) 
 
 reward_per_episode = []
-
 ERP.fill_up(env)
 reward_of_episode = np.sum(ERP.reward)
 ERP.experience_replay_buffer = ERP.preprocessing()
@@ -36,9 +35,11 @@ for episode in range(EPISODES):
     # duration to add 5000 new samples to ERP with Q_net:  7.678728818893433
 
     data = ERP.preprocessing()
-    ERP.experience_replay_buffer.concatenate(data)
+    #ERP.experience_replay_buffer.concatenate(data)
 
     Q_net.training(data)
+    if episode % 50 == 0:
+        Q_net.update_delay_target_network()
 
     reward_per_episode.append(reward_of_episode)
 

@@ -62,7 +62,6 @@ class Agent(tf.keras.layers.Layer):
             reward_of_epsiode (int): reward of this episode
         """
         reward_of_episode = 0
-        ERP.index = 0
 
         ERP.observation[ERP.index] = environment.reset()[0] 
         
@@ -76,10 +75,11 @@ class Agent(tf.keras.layers.Layer):
             if truncated == True or terminated == True:
                 break
 
-            ERP.index += 1
+            ERP.set_index()
+
             ERP.observation[ERP.index] = ERP.next_observation[ERP.index - 1]
 
-        ERP.index = 0
+        
             
         return reward_of_episode
     
@@ -96,7 +96,7 @@ class Agent(tf.keras.layers.Layer):
         """
         q_values = self.delay_target_network(next_observation) #no time_distributed leaves shape = (4,6), mit time_distirbuted shape = (1,6)
         max_q_value = tf.math.reduce_max(q_values, axis = 1) #returns maximum for each batch
-        q_target = reward + discount_factor * max_q_value
+        q_target = reward + discount_factor * max_q_value #* 265.
         return q_target
     
     def training(self, data):
@@ -105,7 +105,7 @@ class Agent(tf.keras.layers.Layer):
             q_target = self.q_target(reward, next_observation)
             self.network.train(observation, action, q_target)
             
-        self.update_delay_target_network()
+        #self.update_delay_target_network()
 
     def update_delay_target_network(self):
         """
