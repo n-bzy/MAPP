@@ -104,8 +104,7 @@ class Agent(tf.keras.layers.Layer):
             observation, action, reward, next_observation = batch
             q_target = self.q_target(reward, next_observation)
             self.network.train(observation, action, q_target)
-            
-        self.update_delay_target_network()
+
 
     def update_delay_target_network(self):
         """
