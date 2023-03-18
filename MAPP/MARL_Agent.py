@@ -73,16 +73,8 @@ class MARL_Agent(tf.keras.layers.Layer):
         return q_target
 
 
-    # in single agent, we called training on every single Element from the ERP.
-    # I guess it would be more efficient to store them in one dataset and train as batch
-    def training(self, num_training_samples, ERP):
-
-        batch = []
-        for _ in range(num_training_samples):
-            sample_number = ERP.sample()
-            q_target = self.q_target_array(ERP, sample_number)
-            observation = ERP.observation[sample_number]
-            batch.append((observation,q_target))
-
-        tf.data.Dataset.from_tensor_slices(batch) #really don't know if this works like that
-        self.network.train(batch)
+    def training(self, data):
+        for batch in data:
+            observation, action, reward, next_observation = batch
+            q_target = self.q_target(reward, next_observation)
+            self.network.train(observation, action, q_target)

@@ -4,54 +4,57 @@ from Experience_Replay_Buffer import ExperienceReplayBuffer
 from MARL_Agent import MARL_Agent
 import time
 
-num_actions = 6 #env.action_space shouldn't we then also set use_full_action_space=False ?
-NUM_TRAINING_SAMPLES = 1000 # amount of training samples
-AGGREGATE_STATS_EVERY = 50 # get and safe stats every n episodes
-UPDATE_TARGET_EVERY = 5 # update the target network every n episodes
-MIN_REWARD = 0 # safe model only when the lowest reward of model over the last n episodes reaches a threshold
+num_actions = 6  # env.action_space shouldn't we then also set use_full_action_space=False ?
+NUM_TRAINING_SAMPLES = 1000  # amount of training samples
+AGGREGATE_STATS_EVERY = 50  # get and safe stats every n episodes
+UPDATE_TARGET_EVERY = 5  # update the target network every n episodes
+MIN_REWARD = 0  # safe model only when the lowest reward of model over the last n episodes reaches a threshold
 EPISODES = 20_000
 ERP_size = 20_000
-MINIMUM_ERP_SIZE = ERP_size / 2 # just to allow for a variable ERP_size
-MODEL_NAME = "MultiPong" # used for saving and logging
+MINIMUM_ERP_SIZE = ERP_size / 2  # just to allow for a variable ERP_size
+MODEL_NAME = "MultiPong"  # used for saving and logging
 
 # Exploration settings
 epsilon = 1  # not a constant, going to be decayed
 EPSILON_DECAY = 0.99975
 MIN_EPSILON = 0.001
 
-
-env = pong_v3.env(num_players=2, render_mode = "human", max_cycles = 125000)
-# I don't think I need any of the special Agent functionality that I can't get from a single DQN_class
+env = pong_v3.env(num_players=2, render_mode="human", max_cycles=125000)
 Q_net = MARL_Agent(num_actions, MODEL_NAME)
 
-#FIXME: check how new ERPS work
-ERP = ExperienceReplayBuffer(size = ERP_size)
+ERP = ExperienceReplayBuffer(size=ERP_size)
 
 reward_per_episode = []
 
-# sperate function to fill ERP before starting the episodes
-#Q_net.fill_ERP(env, ERP, epsilon, MINIMUM_ERP_SIZE)
+ERP.fill_up(env)
+reward_of_episode = np.sum(ERP.reward)
+ERP.experience_replay_buffer = ERP.preprocessing()
 
 for episode in range(EPISODES):
 
-    env.reset() # every episode?
-    episode_reward = [0,0] # to keep track of the reward of both agents in a single episode
+    env.reset()
+    episode_reward = [0, 0]  # to keep track of the reward of both agents in a single episode
     a = 0
 
+    # agent gets removed from env.agents when it is flagged as done
     while env.agents:
         for agent in env.agent_iter():
             observation, reward, termination, truncation, info = env.last()
+            # FIXME: in the single agent case it is clear where we get the current and the next observation from but what about here?
+            ERP.next_observation[ERP.index], ERP.reward[ERP.index], = observation, reward
             action = Q_net.epsilon_greedy_sampling(observation, epsilon)
+            ERP.action[ERP.index] = action
             env.step(action)
-            episode_reward[a%2] = episode_reward[a%2] + reward # only works with two agents
+            episode_reward[a % 2] = episode_reward[a % 2] + reward  # only works with two agents
 
-
+    data = ERP.preprocessing()
+    ERP.experience_replay_buffer.concatenate(data)
 
     # skip the training until the ERP is filled with enough values
     if ERP.size >= MINIMUM_ERP_SIZE:
-        Q_net.training(NUM_TRAINING_SAMPLES, ERP) # also to be implemented
+        Q_net.training(data)
 
-    # the target network only gets updated every few episodes
+        # the target network only gets updated every few episodes
     if not episode % UPDATE_TARGET_EVERY:
         Q_net.update_delay_target_network()
 
@@ -63,7 +66,8 @@ for episode in range(EPISODES):
 
     # every n episodes this safes the average and min / max rewards of these episodes to the tensorboard
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
-        average_reward = sum(reward_per_episode[-AGGREGATE_STATS_EVERY:]) / len(reward_per_episode[-AGGREGATE_STATS_EVERY:])
+        average_reward = sum(reward_per_episode[-AGGREGATE_STATS_EVERY:]) / len(
+            reward_per_episode[-AGGREGATE_STATS_EVERY:])
         min_reward = min(reward_per_episode[-AGGREGATE_STATS_EVERY:])
         max_reward = max(reward_per_episode[-AGGREGATE_STATS_EVERY:])
         Q_net.tensorboard.update_stats(rewards_avg=average_reward, reward_min=min_reward, reward_max=max_reward)
