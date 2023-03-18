@@ -2,6 +2,7 @@ from Experience_Replay_Buffer import ExperienceReplayBuffer
 from Agent import Agent
 import time
 from training_setup import hyperparameter_settings, create_env
+import numpy as np
 
 
 # instantiate environment
@@ -18,7 +19,13 @@ ERP =  ExperienceReplayBuffer(size = TIMESTEPS)
 reward_per_episode = []
 
 ERP.fill_up(env)
+reward_of_episode = np.sum(ERP.reward)
 ERP.experience_replay_buffer = ERP.preprocessing()
+
+Q_net.training(ERP.experience_replay_buffer)
+print(f'done with training on random samples with reward {reward_of_episode}')
+reward_per_episode.append(reward_of_episode)
+
 
 
 for episode in range(EPISODES):
