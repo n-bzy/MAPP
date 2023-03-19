@@ -4,7 +4,7 @@ import gymnasium.wrappers as gw
 
 def hyperparameter_settings(num_environments = 8, num_actions = 6, ERP_size = 1000, num_training_samples = 500, TIMESTEPS = 5000, EPISODES = 20_000, 
                             epsilon = 1, EPSILON_DECAY = 0.99975, MIN_EPSILON = 0.001,
-                            MODEL_NAME = "SinglePong", AGGREGATE_STATS_EVERY = 50, MIN_REWARD = 0):
+                            MODEL_NAME = "SinglePong", AGGREGATE_STATS_EVERY = 50, MIN_REWARD = -21, UPDATE_TARGET_EVERY = 5):
     '''
     Parameters: 
         num_environments (int): amount of environments
@@ -22,7 +22,7 @@ def hyperparameter_settings(num_environments = 8, num_actions = 6, ERP_size = 10
             AGGREGATE_STATS_EVERY (int): get and safe stats every n episodes
             MIN_REWARD (int): safe model only when the lowest reward of model over the last n episodes reaches a threshold
     '''
-    return num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD 
+    return num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD, UPDATE_TARGET_EVERY
 
 
 def create_env(name_env = 'ALE/Pong-v5'):

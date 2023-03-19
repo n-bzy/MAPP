@@ -8,7 +8,7 @@ import numpy as np
 # instantiate environment
 env = create_env()
 
-num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD = hyperparameter_settings()
+num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD, UPDATE_TARGET_EVERY = hyperparameter_settings(num_environments=4, MIN_REWARD=21)
 
 # instantiate q_network
 Q_net = Agent(num_actions, MODEL_NAME)
@@ -52,12 +52,16 @@ for episode in range(EPISODES):
 
         # Save model, but only when min reward is greater or equal a set value
         if min_reward >= MIN_REWARD:
-            Q_net.model.save(
+            Q_net.network.save(
             f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
     # decay epsilon
     if epsilon > MIN_EPSILON:
         epsilon *= EPSILON_DECAY
         epsilon = max(MIN_EPSILON, epsilon)
+
+    # target network gets update every n episodes
+    if not episode % UPDATE_TARGET_EVERY:
+        Q_net.update_delay_target_network()
 
     print(f'done with epsiode {episode} with reward {reward_of_episode}')

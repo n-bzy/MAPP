@@ -107,6 +107,7 @@ class Agent(tf.keras.layers.Layer):
             
         #self.update_delay_target_network()
 
+
     def update_delay_target_network(self):
         """
         Sets the weights of Delay-Target-Network.
