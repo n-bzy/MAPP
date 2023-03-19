@@ -40,7 +40,7 @@ class ExperienceReplayBuffer():
 
         data = tf.data.Dataset.zip((observations, actions, rewards, next_observations))
         data = data.map(lambda x,y,z,t: (tf.cast(x, tf.float32)  / 256., y, tf.cast(z, tf.float32), tf.cast(t, tf.float32) / 256.))
-        data = data.cache().shuffle(500).batch(128).prefetch(tf.data.AUTOTUNE) #wann batchen wir??? erst und dann shuffle oder so wie es jetzt ist????
+        data = data.cache().shuffle(500).batch(32).prefetch(tf.data.AUTOTUNE) #wann batchen wir??? erst und dann shuffle oder so wie es jetzt ist????
 
         return data
     

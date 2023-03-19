@@ -38,8 +38,6 @@ for episode in range(EPISODES):
     #ERP.experience_replay_buffer.concatenate(data)
 
     Q_net.training(data)
-    if episode % 50 == 0:
-        Q_net.update_delay_target_network()
 
     reward_per_episode.append(reward_of_episode)
 
