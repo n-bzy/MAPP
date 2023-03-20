@@ -21,14 +21,6 @@ ERP.fill(env)
 
 print(f"ERP filled with {ERP.size} random samples")
 
-'''ERP.fill_up(env)
-reward_of_episode = np.sum(ERP.reward)
-ERP.experience_replay_buffer = ERP.preprocessing()
-
-Q_net.training(ERP.experience_replay_buffer)
-print(f'done with training on random samples with reward {reward_of_episode}')
-reward_per_episode.append(reward_of_episode)'''
-
 
 
 for episode in range(EPISODES):
@@ -39,9 +31,7 @@ for episode in range(EPISODES):
     while truncated == False and terminated == False:
         observation, terminated, truncated = Q_net.play(observation, environment = env, ERP = ERP)
     # end = time.time()
-    # print(f"duration to add {TIMESTEPS} new samples to ERP with Q_net: ", end-start)
-    # duration to add 5000 new samples to ERP with Q_net:  7.678728818893433
-    
+
         ERP.sample()
         data = ERP.preprocessing_list()
 

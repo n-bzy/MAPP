@@ -46,50 +46,23 @@ class Agent(tf.keras.layers.Layer):
         """
         if np.random.rand() > epsilon:
             q_values = self(tf.expand_dims(tf.cast(observation, tf.float32) / 255., 0))
-            action = np.argmax(q_values)
+            action = np.argmax(q_values).item()
+            random = False
         else:
             action = np.random.randint(self.num_actions)
-        return action
-    
-    def old_play(self, environment, timesteps, ERP, epsilon):
-        """
-        Fill up the Experience Replay Buffer with samples from the environment.
+            random = True
 
-        Parameters: 
-            environment (gymnasium): the environment to get observations, take actions and get reward
-            timesteps (int): amount of new samples 
-            ERP (Experience_Replay_Buffer): store the samples of size num_environments filled with 
-                            [observation_t, action, reward, observation]
-            epsilon (float): ???????????????
-
-        Returns: 
-            reward_of_epsiode (int): reward of this episode
-        """
-        reward_of_episode = 0
-
-        ERP.observation[ERP.index] = environment.reset()[0] 
-        
-        for i in range(timesteps):
-            ERP.action[ERP.index] =  self.epsilon_greedy_sampling(observation = ERP.observation[ERP.index], epsilon = epsilon)
-
-            ERP.next_observation[ERP.index], ERP.reward[ERP.index], terminated, truncated, info = environment.step(ERP.action[ERP.index])
-
-            reward_of_episode += ERP.reward[ERP.index]
-
-            if truncated == True or terminated == True:
-                break
-
-            ERP.set_index()
-
-            ERP.observation[ERP.index] = ERP.next_observation[ERP.index - 1]
-            
-        return reward_of_episode
+        return action, random
     
     def play(self, observation, environment, ERP):
         
-        action =  self.epsilon_greedy_sampling(observation, epsilon = self.epsilon)
+        action, random =  self.epsilon_greedy_sampling(observation, epsilon = self.epsilon)
+
+        #print(type(action), ERP.index, self.epsilon, random)
 
         next_observation, reward, terminated, truncated, info = environment.step(action)
+        if terminated == True or truncated == True:
+            print(f"done at index: {ERP.index}")
 
         ERP.experience_replay_buffer[ERP.index] = (observation, action, reward, next_observation)
 
@@ -122,7 +95,6 @@ class Agent(tf.keras.layers.Layer):
             observation, action, reward, next_observation = batch
             q_target = self.q_target(reward, next_observation)
             self.network.train(observation, action, q_target)
-            print("trained")
 
 
     def update_delay_target_network(self):

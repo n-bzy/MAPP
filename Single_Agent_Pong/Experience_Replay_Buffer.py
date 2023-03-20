@@ -7,37 +7,29 @@ class ExperienceReplayBuffer():
         self.size = size 
         self.experience_replay_buffer = [0] * self.size
         self.experience_replay_buffer_new_samples = []
-        self.observation = np.ndarray(shape=(self.size, 4, 84, 84, 1), dtype=np.float32)
-        self.action = np.ndarray(shape = (self.size, ), dtype=np.int64)
-        self.reward = np.ndarray(shape = (self.size, ))
-        self.next_observation = np.ndarray(shape=(self.size, 4, 84, 84, 1), dtype=np.float32)
         self.index = 0
 
     def sample(self, batch_size = 32):
         """
         Randomly choose a sample from the Experience-Replay-Buffer.
+
+        Troubles: 
+            duplicates no problem
+                visited = set()
+                a = {x for x in indexes if x in visited or (visited.add(x) or False)}
+                print(a)
+            last observation before finish no problem
+
+            last experience no problem
         """
+        #indexes = []
         for _ in range(batch_size):
             index = np.random.randint(self.size)
-            print(index)
+            #indexes.append(index)
             sample = self.experience_replay_buffer[index] 
             self.experience_replay_buffer_new_samples.append(sample)
+        #print(indexes)
 
-    def fill_up(self, environment):
-        """
-        Fill up the whole ERP with samples from random actions.
-        """
-        self.observation[self.index] = environment.reset()[0]
-        for i in range(self.size):
-            if i > 0:
-                self.observation[self.index] = self.next_observation[self.index - 1]
-
-            self.action[self.index] = np.random.randint(6)
-
-            self.next_observation[self.index], self.reward[self.index], terminated, truncated, info = environment.step(self.action[self.index])
-
-            self.index += 1
-        self.index = 0
 
     def fill(self, environment):
         """
@@ -64,24 +56,7 @@ class ExperienceReplayBuffer():
             
             observation = next_observation
 
-            self.index += 1
-        self.index = 0
-
-    def preprocessing(self):
-        """
-        Transforms arrays to tf.data.Dataset
-        """
-
-        observations = tf.data.Dataset.from_tensor_slices(self.observation)
-        actions = tf.data.Dataset.from_tensor_slices(self.action)
-        rewards = tf.data.Dataset.from_tensor_slices(self.reward)
-        next_observations = tf.data.Dataset.from_tensor_slices(self.next_observation)
-
-        data = tf.data.Dataset.zip((observations, actions, rewards, next_observations))
-        data = data.map(lambda x,y,z,t: (tf.cast(x, tf.float32)  / 256., y, tf.cast(z, tf.float32), tf.cast(t, tf.float32) / 256.))
-        data = data.cache().shuffle(500).batch(32).prefetch(tf.data.AUTOTUNE) #wann batchen wir??? erst und dann shuffle oder so wie es jetzt ist????
-
-        return data
+            self.set_index()
     
     def preprocessing_list(self):
         # https://www.tensorflow.org/api_docs/python/tf/data/experimental/from_list 
@@ -89,7 +64,8 @@ class ExperienceReplayBuffer():
 
         #tf.print(self.experience_replay_buffer_new_samples)
 
-        print(type(self.experience_replay_buffer_new_samples))
+        #print(type(self.experience_replay_buffer_new_samples))
+        #print(self.index)
         data = tf.data.experimental.from_list(self.experience_replay_buffer_new_samples)
         data = data.map(lambda x,y,z,t: (tf.cast(x, tf.float32)  / 255., y, tf.cast(z, tf.float32), tf.cast(t, tf.float32) / 255.))
         data = data.cache().shuffle(500).batch(32).prefetch(tf.data.AUTOTUNE) #wann batchen wir??? erst und dann shuffle oder so wie es jetzt ist????
