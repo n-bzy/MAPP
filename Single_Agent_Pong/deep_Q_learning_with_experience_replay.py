@@ -14,7 +14,7 @@ num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISOD
 #instantiate and fill ERP
 ERP =  ExperienceReplayBuffer(size = ERP_size)
 ERP.fill(env)
-print(f"ERP filled with {self.size} random samples")
+print(f"ERP filled with {ERP.size} random samples")
 
 # instantiate q_network
 Q_net = Agent(env, ERP, MODEL_NAME)
