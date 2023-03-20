@@ -14,32 +14,40 @@ num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISOD
 Q_net = Agent(num_actions, MODEL_NAME)
 Q_net.update_delay_target_network()
 
-ERP =  ExperienceReplayBuffer(size = TIMESTEPS) 
+ERP =  ExperienceReplayBuffer(size = ERP_size) 
 
 reward_per_episode = []
-ERP.fill_up(env)
+ERP.fill(env)
+
+print(f"ERP filled with {ERP.size} random samples")
+
+'''ERP.fill_up(env)
 reward_of_episode = np.sum(ERP.reward)
 ERP.experience_replay_buffer = ERP.preprocessing()
 
 Q_net.training(ERP.experience_replay_buffer)
 print(f'done with training on random samples with reward {reward_of_episode}')
-reward_per_episode.append(reward_of_episode)
+reward_per_episode.append(reward_of_episode)'''
 
 
 
 for episode in range(EPISODES):
     # start = time.time()
-    reward_of_episode = Q_net.play(environment = env, timesteps = TIMESTEPS, ERP = ERP, epsilon = epsilon)
+    observation, _ = env.reset()
+    terminated, truncated = False, False
+    Q_net.reward_of_episode = 0
+    while truncated == False and terminated == False:
+        observation, terminated, truncated = Q_net.play(observation, environment = env, ERP = ERP)
     # end = time.time()
     # print(f"duration to add {TIMESTEPS} new samples to ERP with Q_net: ", end-start)
     # duration to add 5000 new samples to ERP with Q_net:  7.678728818893433
+    
+        ERP.sample()
+        data = ERP.preprocessing_list()
 
-    data = ERP.preprocessing()
-    #ERP.experience_replay_buffer.concatenate(data)
+        Q_net.training(data)
 
-    Q_net.training(data)
-
-    reward_per_episode.append(reward_of_episode)
+    reward_per_episode.append(Q_net.reward_of_episode)
 
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
         average_reward = sum(reward_per_episode[-AGGREGATE_STATS_EVERY:]) / len(reward_per_episode[-AGGREGATE_STATS_EVERY:])
@@ -53,13 +61,10 @@ for episode in range(EPISODES):
             Q_net.network.save(
             f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
-    # decay epsilon
-    if epsilon > MIN_EPSILON:
-        epsilon *= EPSILON_DECAY
-        epsilon = max(MIN_EPSILON, epsilon)
-
     # target network gets update every n episodes
     if not episode % UPDATE_TARGET_EVERY:
         Q_net.update_delay_target_network()
 
-    print(f'done with epsiode {episode} with reward {reward_of_episode}')
+    print(f'done with epsiode {episode} with reward {Q_net.reward_of_episode} (epsilon = {Q_net.epsilon})')
+
+    

@@ -3,7 +3,7 @@ import gymnasium.wrappers as gw
 
 
 def hyperparameter_settings(num_environments = 8, num_actions = 6, ERP_size = 1000, num_training_samples = 500, TIMESTEPS = 5000, EPISODES = 20_000, 
-                            epsilon = 1, EPSILON_DECAY = 0.99975, MIN_EPSILON = 0.001,
+                            epsilon = 1, EPSILON_DECAY = 0.999985, MIN_EPSILON = 0.001,
                             MODEL_NAME = "SinglePong", AGGREGATE_STATS_EVERY = 50, MIN_REWARD = -21, UPDATE_TARGET_EVERY = 5):
     '''
     Parameters: 

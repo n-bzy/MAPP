@@ -5,7 +5,7 @@ import ModifiedTensorBoard
 import time
 
 class Agent(tf.keras.layers.Layer):
-    def __init__(self, num_actions, model_name):
+    def __init__(self, num_actions, model_name, epsilon = 1):
         super().__init__()
 
         self.network = DQN(num_actions) 
@@ -14,6 +14,10 @@ class Agent(tf.keras.layers.Layer):
         self.metrics_list = [tf.keras.metrics.Mean(name="loss")]
 
         self.num_actions = num_actions
+
+        self.epsilon = epsilon
+
+        self.reward_of_episode = 0
 
         self.tensorboard = ModifiedTensorBoard.ModifiedTensorBoard(log_dir="logs/{}-{}".format(model_name, int(time.time())))
 
@@ -41,13 +45,13 @@ class Agent(tf.keras.layers.Layer):
             action (int): either action with highest Q-value (exploitation) or random action (exploration)
         """
         if np.random.rand() > epsilon:
-            q_values = self(tf.expand_dims(observation,0))
+            q_values = self(tf.expand_dims(tf.cast(observation, tf.float32) / 255., 0))
             action = np.argmax(q_values)
         else:
             action = np.random.randint(self.num_actions)
         return action
     
-    def play(self, environment, timesteps, ERP, epsilon):
+    def old_play(self, environment, timesteps, ERP, epsilon):
         """
         Fill up the Experience Replay Buffer with samples from the environment.
 
@@ -78,10 +82,24 @@ class Agent(tf.keras.layers.Layer):
             ERP.set_index()
 
             ERP.observation[ERP.index] = ERP.next_observation[ERP.index - 1]
-
-        
             
         return reward_of_episode
+    
+    def play(self, observation, environment, ERP):
+        
+        action =  self.epsilon_greedy_sampling(observation, epsilon = self.epsilon)
+
+        next_observation, reward, terminated, truncated, info = environment.step(action)
+
+        ERP.experience_replay_buffer[ERP.index] = (observation, action, reward, next_observation)
+
+        ERP.set_index()
+
+        self.epsilon_decay()
+
+        self.reward_of_episode += reward
+
+        return next_observation, terminated, truncated
     
     def q_target(self, reward, next_observation, discount_factor = 0.95):
         """
@@ -104,6 +122,7 @@ class Agent(tf.keras.layers.Layer):
             observation, action, reward, next_observation = batch
             q_target = self.q_target(reward, next_observation)
             self.network.train(observation, action, q_target)
+            print("trained")
 
 
     def update_delay_target_network(self):
@@ -111,3 +130,9 @@ class Agent(tf.keras.layers.Layer):
         Sets the weights of Delay-Target-Network.
         """
         self.delay_target_network.set_weights(self.network.get_weights())
+
+    def epsilon_decay(self, MIN_EPSILON = 0.001, EPSILON_DECAY = 0.999985):
+        # decay epsilon
+        if self.epsilon > MIN_EPSILON:
+            self.epsilon *= EPSILON_DECAY
+            self.epsilon = max(MIN_EPSILON, self.epsilon)
