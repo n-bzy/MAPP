@@ -41,7 +41,9 @@ class DQN(tf.keras.layers.Layer):
         return x
     
     def reset_metrics(self):
-
+        """
+        Resets the metrics.
+        """
         for metric in self.metrics:
             metric.reset_states()
 
@@ -57,7 +59,7 @@ class DQN(tf.keras.layers.Layer):
 
         with tf.GradientTape() as tape:
             predictions = self(observation, training=True)
-            predictions = tf.gather(predictions, action, axis = 1, batch_dims=1) #* 265.
+            predictions = tf.gather(predictions, action, axis = 1, batch_dims=1) # [[0,1,2,3,4,5], [9,8,7,6,5,4]] [3,4]
             loss = self.loss(target, predictions) 
 
         gradients = tape.gradient(loss, self.trainable_variables)
@@ -68,15 +70,3 @@ class DQN(tf.keras.layers.Layer):
 
         # Return a dictionary mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
-    
-    '''@tf.function
-    def test(self, observation, target): 
-
-        predictions = self(observation, training=True)
-        loss = self.loss(target, predictions)
-      
-        # update loss metric
-        self.metrics[0].update_state(loss)
-
-        # Return a dictionary mapping metric names to current value
-        return {"val_" + m.name : m.result() for m in self.metrics}'''

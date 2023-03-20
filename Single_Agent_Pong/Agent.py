@@ -5,19 +5,20 @@ import ModifiedTensorBoard
 import time
 
 class Agent(tf.keras.layers.Layer):
-    def __init__(self, num_actions, model_name, epsilon = 1):
+    def __init__(self, environment, ERP, model_name, num_actions = 6, epsilon = 1):
         super().__init__()
 
         self.network = DQN(num_actions) 
         self.delay_target_network = DQN(num_actions) 
 
-        self.metrics_list = [tf.keras.metrics.Mean(name="loss")]
+        self.metrics_list = [tf.keras.metrics.Mean(name="loss")] 
 
-        self.num_actions = num_actions
+        self.ERP = ERP
+        self.environment = environment
 
         self.epsilon = epsilon
-
         self.reward_of_episode = 0
+        self.num_actions = num_actions
 
         self.tensorboard = ModifiedTensorBoard.ModifiedTensorBoard(log_dir="logs/{}-{}".format(model_name, int(time.time())))
 
@@ -30,7 +31,7 @@ class Agent(tf.keras.layers.Layer):
         Returns: 
             x (ndarray): Q-value for every action 
         """
-        x = self.network(x) 
+        x = self.network(x, training) 
         return x
     
     def epsilon_greedy_sampling(self, observation, epsilon = 0.05):
@@ -47,26 +48,29 @@ class Agent(tf.keras.layers.Layer):
         if np.random.rand() > epsilon:
             q_values = self(tf.expand_dims(tf.cast(observation, tf.float32) / 255., 0))
             action = np.argmax(q_values).item()
-            random = False
         else:
             action = np.random.randint(self.num_actions)
-            random = True
 
-        return action, random
+        return action
     
-    def play(self, observation, environment, ERP):
-        
-        action, random =  self.epsilon_greedy_sampling(observation, epsilon = self.epsilon)
+    def play(self, observation):
+        """
+        Select an action to take one step in the environment and store the experience in ERP. 
+        Decay epsilon.
 
-        #print(type(action), ERP.index, self.epsilon, random)
+        Parameters:
+            observation (np.ndarray): the current observation of the environment
 
-        next_observation, reward, terminated, truncated, info = environment.step(action)
-        if terminated == True or truncated == True:
-            print(f"done at index: {ERP.index}")
+        Returns:
+            next_observation (np.ndarray): the current observation of the environment
+            terminated (boole): tells whether one player won the game
+            truncated (boole): tells whether ??????????????????????? frames were displayed
+        """
+        action = self.epsilon_greedy_sampling(observation, epsilon = self.epsilon)
+        next_observation, reward, terminated, truncated, _ = self.environment.step(action)
 
-        ERP.experience_replay_buffer[ERP.index] = (observation, action, reward, next_observation)
-
-        ERP.set_index()
+        self.ERP.experience_replay_buffer[self.ERP.index] = (observation, action, reward, next_observation)
+        self.ERP.set_index()
 
         self.epsilon_decay()
 
@@ -74,7 +78,7 @@ class Agent(tf.keras.layers.Layer):
 
         return next_observation, terminated, truncated
     
-    def q_target(self, reward, next_observation, discount_factor = 0.95):
+    def q_target(self, reward, next_observation, discount_factor = 0.99):
         """
         Calculates Q-target (expected reward) with Delay-Target-Network.
 
@@ -85,12 +89,18 @@ class Agent(tf.keras.layers.Layer):
         Returns: 
             q_target (float): expected reward from "optimal" action 
         """
-        q_values = self.delay_target_network(next_observation) #no time_distributed leaves shape = (4,6), mit time_distirbuted shape = (1,6)
+        q_values = self.delay_target_network(next_observation)
         max_q_value = tf.math.reduce_max(q_values, axis = 1) #returns maximum for each batch
-        q_target = reward + discount_factor * max_q_value #* 265.
+        q_target = reward + discount_factor * max_q_value
         return q_target
     
-    def training(self, data):
+    def training(self):
+        """
+        Train the Agent on data sampled from the ERP.
+        """
+        self.ERP.sample()
+        data = self.ERP.preprocessing_list()
+
         for batch in data:
             observation, action, reward, next_observation = batch
             q_target = self.q_target(reward, next_observation)
@@ -104,7 +114,13 @@ class Agent(tf.keras.layers.Layer):
         self.delay_target_network.set_weights(self.network.get_weights())
 
     def epsilon_decay(self, MIN_EPSILON = 0.001, EPSILON_DECAY = 0.999985):
-        # decay epsilon
+        """
+        Decay epsilon.
+
+        Parameters:
+            MIN_EPSILON (float): a threshold which epsilon may not fall below 
+            EPSILON_DECAY (float): the factor epsilon is decayed with
+        """
         if self.epsilon > MIN_EPSILON:
             self.epsilon *= EPSILON_DECAY
             self.epsilon = max(MIN_EPSILON, self.epsilon)

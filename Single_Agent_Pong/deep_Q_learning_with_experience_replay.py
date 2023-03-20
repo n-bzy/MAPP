@@ -8,35 +8,33 @@ import numpy as np
 # instantiate environment
 env = create_env()
 
+# set Hyperparameters
 num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD, UPDATE_TARGET_EVERY = hyperparameter_settings(num_environments=4, MIN_REWARD=21)
 
+#instantiate and fill ERP
+ERP =  ExperienceReplayBuffer(size = ERP_size)
+ERP.fill(env)
+print(f"ERP filled with {self.size} random samples")
+
 # instantiate q_network
-Q_net = Agent(num_actions, MODEL_NAME)
+Q_net = Agent(env, ERP, MODEL_NAME)
 Q_net.update_delay_target_network()
 
-ERP =  ExperienceReplayBuffer(size = ERP_size) 
-
 reward_per_episode = []
-ERP.fill(env)
-
-print(f"ERP filled with {ERP.size} random samples")
-
 
 
 for episode in range(EPISODES):
-    # start = time.time()
+
     observation, _ = env.reset()
     terminated, truncated = False, False
     Q_net.reward_of_episode = 0
+
+    # collect experiences and train the Agent
     while truncated == False and terminated == False:
-        observation, terminated, truncated = Q_net.play(observation, environment = env, ERP = ERP)
-    # end = time.time()
+        observation, terminated, truncated = Q_net.play(observation)
+        Q_net.training()
 
-        ERP.sample()
-        data = ERP.preprocessing_list()
-
-        Q_net.training(data)
-
+    # keep track of the reward and save it to the tensorboard
     reward_per_episode.append(Q_net.reward_of_episode)
 
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
@@ -51,9 +49,9 @@ for episode in range(EPISODES):
             Q_net.network.save(
             f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
-    # target network gets update every n episodes
-    if not episode % UPDATE_TARGET_EVERY:
-        Q_net.update_delay_target_network()
+    # target network gets update every n episodes (in the nature paper they do it every 1000frames, this is approximately 1 episode) ?????????????????
+    #if not episode % UPDATE_TARGET_EVERY:
+    Q_net.update_delay_target_network()
 
     print(f'done with epsiode {episode} with reward {Q_net.reward_of_episode} (epsilon = {Q_net.epsilon})')
 
