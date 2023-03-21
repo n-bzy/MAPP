@@ -25,7 +25,8 @@ reward_per_episode = []
 
 for episode in range(EPISODES):
 
-    observation = ERP.preprocessing(env.reset()[0])
+    observation, _ = env.reset()
+    observation = ERP.preprocessing(observation)
     terminated, truncated = False, False
     Q_net.reward_of_game = 0
 

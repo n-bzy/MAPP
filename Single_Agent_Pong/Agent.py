@@ -70,7 +70,6 @@ class Agent(tf.keras.layers.Layer):
         next_observation = self.ERP.preprocessing(next_observation)
 
         self.ERP.experience_replay_buffer[self.ERP.index] = (observation, action, tf.cast(reward, tf.float32), next_observation)
-        print([type(i) for i in (observation, action, tf.cast(reward, tf.float32), next_observation)])
         self.ERP.set_index()
 
         self.epsilon_decay()

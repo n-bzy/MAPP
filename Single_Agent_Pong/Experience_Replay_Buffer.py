@@ -31,7 +31,8 @@ class ExperienceReplayBuffer():
             environment (gymnasium): the environment to get observations, take actions and get reward
         """
 
-        observation = self.preprocessing(environment.reset()[0])
+        observation, _ = environment.reset()
+        observation = self.preprocessing(observation)
         for _ in range(self.size):
             action =  np.random.randint(6)
 
@@ -39,10 +40,11 @@ class ExperienceReplayBuffer():
             next_observation = self.preprocessing(next_observation)
 
             self.experience_replay_buffer[self.index] = (observation, action, tf.cast(reward, tf.float32), next_observation)
-            print([type(i) for i in (observation, action, tf.cast(reward, tf.float32), next_observation)])
 
             if truncated == True or terminated == True: 
                 next_observation = environment.reset()[0]
+                next_observation = self.preprocessing(next_observation)
+
             
             observation = next_observation
 
@@ -56,7 +58,6 @@ class ExperienceReplayBuffer():
         Returns:
             data (tf.data.Dataset): dataset to train on
         """
-        print("prep")
         data = tf.data.experimental.from_list(self.experience_replay_buffer_new_samples)
         #data = data.map(lambda x,y,z,t: (tf.cast(x, tf.float32)  / 255., y, tf.cast(z, tf.float32), tf.cast(t, tf.float32) / 255.))
         data = data.cache().shuffle(500).batch(32).prefetch(tf.data.AUTOTUNE) #wann batchen wir??? erst und dann shuffle oder so wie es jetzt ist????
