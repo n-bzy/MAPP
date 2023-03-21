@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import time
 
 class ExperienceReplayBuffer():
     def __init__(self, size): 
@@ -30,13 +31,15 @@ class ExperienceReplayBuffer():
             environment (gymnasium): the environment to get observations, take actions and get reward
         """
 
-        observation = environment.reset()[0]
+        observation = self.preprocessing(environment.reset()[0])
         for _ in range(self.size):
             action =  np.random.randint(6)
 
             next_observation, reward, terminated, truncated, _ = environment.step(action)
+            next_observation = self.preprocessing(next_observation)
 
-            self.experience_replay_buffer[self.index] = (observation, action, reward, next_observation)
+            self.experience_replay_buffer[self.index] = (observation, action, tf.cast(reward, tf.float32), next_observation)
+            print([type(i) for i in (observation, action, tf.cast(reward, tf.float32), next_observation)])
 
             if truncated == True or terminated == True: 
                 next_observation = environment.reset()[0]
@@ -53,8 +56,9 @@ class ExperienceReplayBuffer():
         Returns:
             data (tf.data.Dataset): dataset to train on
         """
+        print("prep")
         data = tf.data.experimental.from_list(self.experience_replay_buffer_new_samples)
-        data = data.map(lambda x,y,z,t: (tf.cast(x, tf.float32)  / 255., y, tf.cast(z, tf.float32), tf.cast(t, tf.float32) / 255.))
+        #data = data.map(lambda x,y,z,t: (tf.cast(x, tf.float32)  / 255., y, tf.cast(z, tf.float32), tf.cast(t, tf.float32) / 255.))
         data = data.cache().shuffle(500).batch(32).prefetch(tf.data.AUTOTUNE) #wann batchen wir??? erst und dann shuffle oder so wie es jetzt ist????
 
         self.experience_replay_buffer_new_samples = []
@@ -68,3 +72,8 @@ class ExperienceReplayBuffer():
         self.index += 1
         if self.index == self.size:
             self.index = 0
+
+
+    def preprocessing(self, observation):
+        observation = tf.cast(observation, tf.float32)  / 255.
+        return observation

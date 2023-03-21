@@ -25,17 +25,17 @@ reward_per_episode = []
 
 for episode in range(EPISODES):
 
-    observation, _ = env.reset()
+    observation = ERP.preprocessing(env.reset()[0])
     terminated, truncated = False, False
-    Q_net.reward_of_episode = 0
+    Q_net.reward_of_game = 0
 
     # collect experiences and train the Agent
     while truncated == False and terminated == False:
         observation, terminated, truncated = Q_net.play(observation)
         Q_net.training()
 
-    # keep track of the reward and save it to the tensorboard
-    reward_per_episode.append(Q_net.reward_of_episode)
+    # logging 
+    reward_per_episode.append(Q_net.reward_of_game)
 
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
         average_reward = sum(reward_per_episode[-AGGREGATE_STATS_EVERY:]) / len(reward_per_episode[-AGGREGATE_STATS_EVERY:])
@@ -53,6 +53,6 @@ for episode in range(EPISODES):
     #if not episode % UPDATE_TARGET_EVERY:
     Q_net.update_delay_target_network()
 
-    print(f'done with epsiode {episode} with reward {Q_net.reward_of_episode} (epsilon = {Q_net.epsilon})')
+    print(f'done with epsiode {episode} with reward {Q_net.reward_of_game} (epsilon = {Q_net.epsilon})')
 
     

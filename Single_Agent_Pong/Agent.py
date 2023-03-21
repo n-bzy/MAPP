@@ -11,15 +11,14 @@ class Agent(tf.keras.layers.Layer):
         self.network = DQN(num_actions) 
         self.delay_target_network = DQN(num_actions) 
 
-        self.metrics_list = [tf.keras.metrics.Mean(name="loss")] 
-
         self.ERP = ERP
         self.environment = environment
 
         self.epsilon = epsilon
-        self.reward_of_episode = 0
+        self.reward_of_game = 0
         self.num_actions = num_actions
 
+        self.metrics_list = [tf.keras.metrics.Mean(name="loss")] 
         self.tensorboard = ModifiedTensorBoard.ModifiedTensorBoard(log_dir="logs/{}-{}".format(model_name, int(time.time())))
 
     def call(self, x, training = False):
@@ -34,7 +33,7 @@ class Agent(tf.keras.layers.Layer):
         x = self.network(x, training) 
         return x
     
-    def epsilon_greedy_sampling(self, observation, epsilon = 0.05):
+    def epsilon_greedy_sampling(self, observation, epsilon):
         """
         Epsilon-greedy sampling to balance exploration and exploitation. 
 
@@ -46,7 +45,7 @@ class Agent(tf.keras.layers.Layer):
             action (int): either action with highest Q-value (exploitation) or random action (exploration)
         """
         if np.random.rand() > epsilon:
-            q_values = self(tf.expand_dims(tf.cast(observation, tf.float32) / 255., 0))
+            q_values = self(tf.expand_dims(observation, 0))
             action = np.argmax(q_values).item()
         else:
             action = np.random.randint(self.num_actions)
@@ -66,15 +65,17 @@ class Agent(tf.keras.layers.Layer):
             terminated (boole): tells whether one player won the game
             truncated (boole): tells whether ??????????????????????? frames were displayed
         """
-        action = self.epsilon_greedy_sampling(observation, epsilon = self.epsilon)
+        action = self.epsilon_greedy_sampling(observation, self.epsilon)
         next_observation, reward, terminated, truncated, _ = self.environment.step(action)
+        next_observation = self.ERP.preprocessing(next_observation)
 
-        self.ERP.experience_replay_buffer[self.ERP.index] = (observation, action, reward, next_observation)
+        self.ERP.experience_replay_buffer[self.ERP.index] = (observation, action, tf.cast(reward, tf.float32), next_observation)
+        print([type(i) for i in (observation, action, tf.cast(reward, tf.float32), next_observation)])
         self.ERP.set_index()
 
         self.epsilon_decay()
 
-        self.reward_of_episode += reward
+        self.reward_of_game += reward
 
         return next_observation, terminated, truncated
     
