@@ -9,7 +9,7 @@ import numpy as np
 env = create_env()
 
 # set Hyperparameters
-num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD, UPDATE_TARGET_EVERY = hyperparameter_settings(num_environments=4, MIN_REWARD=21)
+num_actions, ERP_size, EPISODES, epsilon, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD, UPDATE_TARGET_EVERY = hyperparameter_settings()
 
 #instantiate and fill ERP
 ERP =  ExperienceReplayBuffer(size = ERP_size)
@@ -26,7 +26,7 @@ reward_per_episode = []
 for episode in range(EPISODES):
 
     observation, _ = env.reset()
-    observation = ERP.preprocessing(observation)
+    observation = ERP.normalizing(observation)
     terminated, truncated = False, False
     Q_net.reward_of_game = 0
 
@@ -50,9 +50,9 @@ for episode in range(EPISODES):
             Q_net.network.save(
             f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
-    # target network gets update every n episodes (in the nature paper they do it every 1000frames, this is approximately 1 episode) ?????????????????
-    #if not episode % UPDATE_TARGET_EVERY:
-    Q_net.update_delay_target_network()
+    # target network gets update every n episodes
+    if not episode % UPDATE_TARGET_EVERY:
+        Q_net.update_delay_target_network()
 
     print(f'done with epsiode {episode} with reward {Q_net.reward_of_game} (epsilon = {Q_net.epsilon})')
 

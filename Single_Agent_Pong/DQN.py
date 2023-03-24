@@ -1,7 +1,8 @@
 import tensorflow as tf
 
 
-class DQN(tf.keras.layers.Layer):
+#class DQN(tf.keras.layers.Layer):
+class DQN(tf.keras.Model):
     def __init__(self, num_actions):
         super().__init__()
 
@@ -13,11 +14,11 @@ class DQN(tf.keras.layers.Layer):
         self.metrics_list = [tf.keras.metrics.Mean(name="loss")]
         
         self.q_net = [tf.keras.layers.Conv2D(filters=32, kernel_size=8, strides = 4, padding='same', activation='relu'), 
-                      tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPool2D()),
+                      #tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPool2D()),
                       tf.keras.layers.Conv2D(filters=64, kernel_size=4, strides = 2, padding='same', activation='relu'),
-                      tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPool2D()),
+                      #tf.keras.layers.TimeDistributed(tf.keras.layers.MaxPool2D()),
                       tf.keras.layers.Conv2D(filters=64, kernel_size=3, padding='same', activation='relu'),
-                      tf.keras.layers.TimeDistributed(tf.keras.layers.GlobalMaxPool2D()),
+                      #tf.keras.layers.TimeDistributed(tf.keras.layers.GlobalMaxPool2D()),
                       tf.keras.layers.Flatten(),
                       tf.keras.layers.Dense(512),
                       tf.keras.layers.Dense(self.num_actions,
@@ -37,7 +38,7 @@ class DQN(tf.keras.layers.Layer):
             x (ndarray): Q-values
         """
         for layer in self.q_net:
-            x = layer(x)
+            x = layer(x, training = training)
         return x
     
     def reset_metrics(self):
@@ -54,19 +55,18 @@ class DQN(tf.keras.layers.Layer):
 
         Parameters: 
             observation (ndarray): the state of the environment
+            action (int): the action the agent chose when faced with the observation
             target (float): expected reward from "optimal" action
         """
 
         with tf.GradientTape() as tape:
             predictions = self(observation, training=True)
-            predictions = tf.gather(predictions, action, axis = 1, batch_dims=1) # [[0,1,2,3,4,5], [9,8,7,6,5,4]] [3,4]
+            predictions = tf.gather(predictions, action, axis = 1, batch_dims=1)
             loss = self.loss(target, predictions) 
 
         gradients = tape.gradient(loss, self.trainable_variables)
         self.optimizer.apply_gradients(zip(gradients, self.trainable_variables))
       
-        # update loss metric
         self.metrics[0].update_state(loss)
 
-        # Return a dictionary mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}

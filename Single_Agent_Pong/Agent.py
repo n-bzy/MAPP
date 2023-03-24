@@ -58,16 +58,16 @@ class Agent(tf.keras.layers.Layer):
         Decay epsilon.
 
         Parameters:
-            observation (np.ndarray): the current observation of the environment
+            observation (ndarray): the current observation of the environment
 
         Returns:
-            next_observation (np.ndarray): the current observation of the environment
+            next_observation (ndarray): the current observation of the environment
             terminated (boole): tells whether one player won the game
-            truncated (boole): tells whether ??????????????????????? frames were displayed
+            truncated (boole): tells whether a timelimit is reached
         """
         action = self.epsilon_greedy_sampling(observation, self.epsilon)
         next_observation, reward, terminated, truncated, _ = self.environment.step(action)
-        next_observation = self.ERP.preprocessing(next_observation)
+        next_observation = self.ERP.normalizing(next_observation)
 
         self.ERP.experience_replay_buffer[self.ERP.index] = (observation, action, tf.cast(reward, tf.float32), next_observation)
         self.ERP.set_index()
@@ -90,7 +90,7 @@ class Agent(tf.keras.layers.Layer):
             q_target (float): expected reward from "optimal" action 
         """
         q_values = self.delay_target_network(next_observation)
-        max_q_value = tf.math.reduce_max(q_values, axis = 1) #returns maximum for each batch
+        max_q_value = tf.math.reduce_max(q_values, axis = 1)
         q_target = reward + discount_factor * max_q_value
         return q_target
     
@@ -99,7 +99,7 @@ class Agent(tf.keras.layers.Layer):
         Train the Agent on data sampled from the ERP.
         """
         self.ERP.sample()
-        data = self.ERP.preprocessing_list()
+        data = self.ERP.preprocessing()
 
         for batch in data:
             observation, action, reward, next_observation = batch
