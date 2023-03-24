@@ -2,7 +2,7 @@ import gymnasium as gym
 import gymnasium.wrappers as gw
 
 
-def hyperparameter_settings(num_actions = 6, ERP_size = 5000, EPISODES = 20_000, 
+def hyperparameter_settings(num_actions = 6, ERP_size = 10000, EPISODES = 20_000, 
                             epsilon = 1,
                             MODEL_NAME = "SinglePong", AGGREGATE_STATS_EVERY = 1, MIN_REWARD = -21, UPDATE_TARGET_EVERY = 10):
     '''
