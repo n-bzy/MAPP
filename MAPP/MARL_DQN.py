@@ -59,8 +59,17 @@ class MARL_DQN(tf.keras.layers.Layer):
             x (ndarray): Q-values
         """
         for layer in self.q_net:
-            x = layer(x)
+            x = layer(x, training = training)
         return x
+
+
+    def reset_metrics(self):
+        """
+        Resets the metrics.
+        """
+        for metric in self.metrics:
+            metric.reset_states()
+
 
     @tf.function
     def train(self, observation, target):
@@ -86,16 +95,3 @@ class MARL_DQN(tf.keras.layers.Layer):
         # Return a dictionary mapping metric names to current value
         return {m.name: m.result() for m in self.metrics}
 
-    # do we really need a test function?
-    # Isn't the reward of the model our test and the only metric we log so far?
-    @tf.function
-    def test(self, observation, target):
-
-        predictions = self(observation, training=True)
-        loss = self.loss(target, predictions)
-
-        # update loss metric
-        self.metrics[0].update_state(loss)
-
-        # Return a dictionary mapping metric names to current value
-        return {"val_" + m.name : m.result() for m in self.metrics}

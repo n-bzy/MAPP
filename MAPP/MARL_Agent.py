@@ -5,14 +5,22 @@ import ModifiedTensorBoard
 import time
 
 class MARL_Agent(tf.keras.layers.Layer):
-    def __init__(self, num_actions, model_name):
+    def __init__(self, environment, ERP, num_actions, model_name, epsilon = 1, min_epsilon = 0.001, epsilon_decay_value = 0.999985):
         super().__init__()
 
         self.network = MARL_DQN(num_actions)
         self.delay_target_network = MARL_DQN(num_actions)
         self.update_delay_target_network()
 
+        self.environment = environment
+        self.ERP = ERP
+
+        self.epsilon = epsilon
+        self.min_epsilon = min_epsilon
+        self.epsilon_decay_value = epsilon_decay_value
+
         self.num_actions = num_actions
+        self.metrics_list = [tf.keras.metrics.Mean(name="loss")]
 
         self.tensorboard = ModifiedTensorBoard.ModifiedTensorBoard(log_dir="logs/{}-{}".format(model_name, int(time.time())))
 
@@ -28,7 +36,7 @@ class MARL_Agent(tf.keras.layers.Layer):
         x = self.network(x)
         return x
 
-    def epsilon_greedy_sampling(self, observation, epsilon = 0.05):
+    def epsilon_greedy_sampling(self, observation, epsilon):
         """
         Epsilon-greedy sampling to balance exploration and exploitation.
 
@@ -39,10 +47,12 @@ class MARL_Agent(tf.keras.layers.Layer):
         Returns:
             action (int): either action with highest Q-value (exploitation) or random action (exploration)
         """
-        #FIXME: without it gives me an dimension error with this it gives a invalid value for attribute error
-        observation = tf.expand_dims(observation,0)
-        q_values = self(observation)
-        action = [np.argmax(q_values[i]) if np.random.rand() > epsilon else np.random.randint(self.num_actions) for i in range(self.num_environments)]
+        if np.random.rand() > epsilon:
+            q_values = self(tf.expand_dims(observation, 0))
+            action = np.argmax(q_values).item()
+        else:
+            action = np.random.randint(self.num_actions)
+
         return action
 
 
@@ -73,8 +83,27 @@ class MARL_Agent(tf.keras.layers.Layer):
         return q_target
 
 
-    def training(self, data):
+    def training(self):
+        """
+        Train the Agent on data sampled from the ERP.
+        """
+        self.ERP.sample()
+        data = self.ERP.preprocessing()
+
         for batch in data:
             observation, action, reward, next_observation = batch
             q_target = self.q_target(reward, next_observation)
             self.network.train(observation, action, q_target)
+
+
+    def epsilon_decay(self):
+        """
+        Decay epsilon.
+
+        Parameters:
+            MIN_EPSILON (float): a threshold which epsilon may not fall below
+            EPSILON_DECAY (float): the factor epsilon is decayed with
+        """
+        if self.epsilon > self.min_epsilon:
+            self.epsilon *= self.epsilon_decay_value
+            self.epsilon = max(self.min_epsilon, self.epsilon)
