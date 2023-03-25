@@ -1,9 +1,9 @@
-import gymnasium as gym
-import gymnasium.wrappers as gw
+from pettingzoo.atari import pong_v3
+import supersuit
 
 
-def hyperparameter_settings(num_environments = 8, num_actions = 6, ERP_size = 1000, num_training_samples = 500, TIMESTEPS = 500, EPISODES = 20_000, 
-                            epsilon = 1, EPSILON_DECAY = 0.99975, MIN_EPSILON = 0.001,
+def hyperparameter_settings(num_environments = 8, num_actions = 6, ERP_size = 10_000, num_training_samples = 32, TIMESTEPS = 1000, EPISODES = 20_000, 
+                            epsilon = 1, EPSILON_DECAY = 0.999985, MIN_EPSILON = 0.01,
                             MODEL_NAME = "SinglePong", AGGREGATE_STATS_EVERY = 50, MIN_REWARD = 0):
     '''
     Parameters: 
@@ -35,8 +35,19 @@ def create_env(name_env = 'ALE/Pong-v5'):
     Return:
         env (gymnasium): an environment to train an agent 
     '''
-    env = gym.make(name_env) 
-    env = gw.ResizeObservation(env, 84)
-    env = gw.GrayScaleObservation(env, keep_dim=True)
-    env = gw.FrameStack(env, 4)
+    env = pong_v3.env(num_players=2)
+
+    # as per openai baseline's MaxAndSKip wrapper, maxes over the last 2 frames
+    # to deal with frame flickering
+    env = supersuit.max_observation_v0(env, 2)
+    # repeat_action_probability is set to 0.25 to introduce non-determinism to the system
+    env = supersuit.sticky_actions_v0(env, repeat_action_probability=0.25)
+    # Reduce color to grayscale
+    env = supersuit.color_reduction_v0(env, mode='full')
+    # skip frames for faster processing and less control
+    env = supersuit.frame_skip_v0(env, 4)
+    # downscale observation for faster processing
+    env = supersuit.resize_v1(env, 84, 84)
+    # Stack 4 frames in one observation
+    env = supersuit.frame_stack_v1(env, 4)
     return env
