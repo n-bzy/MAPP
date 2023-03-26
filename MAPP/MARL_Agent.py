@@ -4,7 +4,7 @@ from MARL_DQN import MARL_DQN
 import ModifiedTensorBoard
 import time
 
-class MARL_Agent(tf.keras.layers.Layer):
+class MARL_Agent(tf.keras.Model):
     def __init__(self, environment, ERP, num_actions, model_name, epsilon = 1, min_epsilon = 0.001, epsilon_decay_value = 0.999985):
         super().__init__()
 

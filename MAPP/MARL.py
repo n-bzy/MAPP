@@ -26,7 +26,7 @@ MIN_EPSILON = 0.001
 #env = pong_v3.env(num_players=2, render_mode="human", max_cycles=125000)
 env = pong_v3.env(num_players=2)
 '''
-num_actions, ERP_size, num_training_samples, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, UPDATE_TARGET_EVERY, AGGREGATE_STATS_EVERY, MIN_REWARD = training_setup.hyperparameter_settings(ERP_size=2_000)
+num_actions, ERP_size, num_training_samples, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, UPDATE_TARGET_EVERY, AGGREGATE_STATS_EVERY, MIN_REWARD = training_setup.hyperparameter_settings()
 print("hyperparameters loaded")
 
 env = training_setup.create_env()
@@ -42,7 +42,8 @@ Q_net = MARL_Agent(env, ERP, num_actions, MODEL_NAME, epsilon=epsilon, min_epsil
 print("Qnet created")
 
 # store rewards
-reward_per_episode = []
+reward_agent_one = []
+reward_agent_two = []
 
 print("starting training loop")
 # training loop
@@ -84,26 +85,40 @@ for episode in range(EPISODES):
     if not episode % UPDATE_TARGET_EVERY:
         Q_net.update_delay_target_network()
 
-    # In the MARL case we should probably safe the rewards for every agent separately
-    # so we need to update this at some point
-    # with parameter sharing, it shouldn't make a difference which agent got which reward
-    # might still be good to catch irregularities
-    #FIXME: taking the mean always results in a reward of zero, as it is a zero-sum-game
-    reward_per_episode.append(np.mean(episode_reward))
+    # collect the rewards for each agent separately
+    # as a zero-sum game the sum of both will be zero
+    reward_agent_one.append(episode_reward[0])
+    reward_agent_two.append(episode_reward[1])
 
     # every n episodes this safes the average and min / max rewards of these episodes to the tensorboard
+    #FIXME: if both agents are good at defending, the reward will be close to zero
+    # if both agents are bad at defending, the rewards will also be close to zero (getting and losing points -> avg zero)
+    # idea: log how often a point was scored or lost separately.
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
-        average_reward = sum(reward_per_episode[-AGGREGATE_STATS_EVERY:]) / len(
-            reward_per_episode[-AGGREGATE_STATS_EVERY:])
-        min_reward = min(reward_per_episode[-AGGREGATE_STATS_EVERY:])
-        max_reward = max(reward_per_episode[-AGGREGATE_STATS_EVERY:])
-        Q_net.tensorboard.update_stats(rewards_avg=average_reward, reward_min=min_reward, reward_max=max_reward)
 
-        #FIXME: saving was done over the in-build function of the Sequential model, but we don't use that anymore
+        agent_one_average_reward = sum(reward_agent_one[-AGGREGATE_STATS_EVERY:]) / len(
+            reward_agent_one[-AGGREGATE_STATS_EVERY:])
+        agent_two_average_reward = sum(reward_agent_two[-AGGREGATE_STATS_EVERY:]) / len(
+            reward_agent_two[-AGGREGATE_STATS_EVERY:])
+
+        agent_one_min_reward = min(reward_agent_one[-AGGREGATE_STATS_EVERY:])
+        agent_two_min_reward = min(reward_agent_two[-AGGREGATE_STATS_EVERY:])
+
+        agent_one_max_reward = max(reward_agent_one[-AGGREGATE_STATS_EVERY:])
+        agent_two_max_reward = max(reward_agent_two[-AGGREGATE_STATS_EVERY:])
+
+        Q_net.tensorboard.update_stats(rewards_avg_1 = agent_one_average_reward,
+                                       rewards_avg_2 = agent_two_average_reward,
+                                       reward_min_1 = agent_one_min_reward,
+                                       reward_min_2 = agent_two_min_reward,
+                                       reward_max_1 = agent_one_max_reward,
+                                       reward_max_2 = agent_two_max_reward)
+
+
         # Save model, but only when min reward is greater or equal a set value
-        #if min_reward >= MIN_REWARD:
-        #    Q_net.network.save(
-        #        f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+        if max(agent_one_min_reward, agent_two_min_reward) >= MIN_REWARD:
+            Q_net.network.save(
+                f'models/{MODEL_NAME}__{agent_one_max_reward:_>7.2f}max_{agent_one_average_reward:_>7.2f}avg_{agent_one_min_reward:_>7.2f}min__{int(time.time())}.model')
 
     # we should consider printing only the average of the rewards
     print(f'done with epsiode {episode} with reward {episode_reward}')

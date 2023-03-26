@@ -1,7 +1,7 @@
 import tensorflow as tf
 
 
-class MARL_DQN(tf.keras.layers.Layer):
+class MARL_DQN(tf.keras.Model):
     def __init__(self, num_actions):
         super().__init__()
 
@@ -39,7 +39,7 @@ class MARL_DQN(tf.keras.layers.Layer):
                                             kernel_initializer=tf.keras.initializers.RandomUniform(minval=-0.03, maxval=0.03),
                                             bias_initializer=tf.keras.initializers.Constant(-0.2))] #last is q_values layer
 
-    def __call__(self, x, training = False):
+    def call(self, x, training = False):
         """
         Predicts Q-values (expected rewards) for each action.
 
