@@ -36,7 +36,7 @@ class MARL_Agent(tf.keras.layers.Layer):
         x = self.network(x)
         return x
 
-    def epsilon_greedy_sampling(self, observation, epsilon):
+    def epsilon_greedy_sampling(self, observation):
         """
         Epsilon-greedy sampling to balance exploration and exploitation.
 
@@ -47,7 +47,7 @@ class MARL_Agent(tf.keras.layers.Layer):
         Returns:
             action (int): either action with highest Q-value (exploitation) or random action (exploration)
         """
-        if np.random.rand() > epsilon:
+        if np.random.rand() > self.epsilon:
             q_values = self(tf.expand_dims(observation, 0))
             action = np.argmax(q_values).item()
         else:
@@ -61,6 +61,7 @@ class MARL_Agent(tf.keras.layers.Layer):
         Sets the weights of Delay-Target-Network.
         """
         self.delay_target_network.set_weights(self.network.get_weights())
+
 
     #FIXME: the docstring is wrong (from an old version)
     def q_target_array(self, ERP, sample_number, discount_factor = 0.95):
@@ -80,6 +81,23 @@ class MARL_Agent(tf.keras.layers.Layer):
         q_values = self.delay_target_network(observation)
         max_q_value = tf.math.top_k(q_values, k=1, sorted=True)
         q_target = reward + discount_factor * max_q_value.values.numpy()
+        return q_target
+
+
+    def q_target(self, reward, next_observation, discount_factor = 0.99):
+        """
+        Calculates Q-target (expected reward) with Delay-Target-Network.
+
+        Parameters:
+            sample (list): list of lists each filled with [observation_t, action, reward, observation]
+            discount_factor (float): to set the influence of future rewards
+
+        Returns:
+            q_target (float): expected reward from "optimal" action
+        """
+        q_values = self.delay_target_network(next_observation)
+        max_q_value = tf.math.reduce_max(q_values, axis = 1)
+        q_target = reward + discount_factor * max_q_value
         return q_target
 
 

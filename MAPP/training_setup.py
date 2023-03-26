@@ -2,16 +2,14 @@ from pettingzoo.atari import pong_v3
 import supersuit
 
 
-def hyperparameter_settings(num_environments = 8, num_actions = 6, ERP_size = 10_000, num_training_samples = 32, TIMESTEPS = 1000, EPISODES = 20_000, 
+def hyperparameter_settings(num_actions = 6, ERP_size = 10_000, num_training_samples = 32, EPISODES = 20_000,
                             epsilon = 1, EPSILON_DECAY = 0.999985, MIN_EPSILON = 0.01,
-                            MODEL_NAME = "SinglePong", AGGREGATE_STATS_EVERY = 50, MIN_REWARD = 0):
+                            MODEL_NAME = "MultiPong", UPDATE_TARGET_EVERY = 5, AGGREGATE_STATS_EVERY = 50, MIN_REWARD = 0):
     '''
-    Parameters: 
-        num_environments (int): amount of environments
+    Parameters:
         num_actions (int): amount of possible actions for the agent
         ERP_size (int): size of the experience replay buffer
         num_training_samples (int): amount of samples the agent trains on every episode
-        TIMESTEPS (int): amount of new samples to fill ERP with
         EPISODES (int): amount of epsiodes to train for
         For exploration:
             epsilon (float): not a constant, going to be decayed
@@ -19,13 +17,14 @@ def hyperparameter_settings(num_environments = 8, num_actions = 6, ERP_size = 10
             MIN_EPSILON (float): the minimum allowed for epsilon
         For logging:
             MODEL_NAME (str): used for saving and logging
+            UPDATE_TARGET_EVERY (int): update the target network every n episodes
             AGGREGATE_STATS_EVERY (int): get and safe stats every n episodes
             MIN_REWARD (int): safe model only when the lowest reward of model over the last n episodes reaches a threshold
     '''
-    return num_environments, num_actions, ERP_size, num_training_samples, TIMESTEPS, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD 
+    return num_actions, ERP_size, num_training_samples,  EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, UPDATE_TARGET_EVERY, AGGREGATE_STATS_EVERY, MIN_REWARD
 
 
-def create_env(name_env = 'ALE/Pong-v5'):
+def create_env():
     '''
     Creates and preprocesses the environment to be of size (4, 84, 84, 1). 
     
@@ -33,7 +32,7 @@ def create_env(name_env = 'ALE/Pong-v5'):
     The 2nd and 3rd dimension represent the size of the observation.
     And the 4th dimension represents the colorchannel which is grayscale.
     Return:
-        env (gymnasium): an environment to train an agent 
+        env (pettingzoo): an environment to train an agent
     '''
     env = pong_v3.env(num_players=2)
 

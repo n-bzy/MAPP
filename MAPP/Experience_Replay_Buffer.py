@@ -29,8 +29,8 @@ class ExperienceReplayBuffer():
         Parameters:
             env (pettingzoo): the environment to get observations, take actions and get reward
         """
-
-        for _ in range(self.size):
+        counter = 0
+        while counter < self.size:
 
             env.reset()
 
@@ -50,6 +50,7 @@ class ExperienceReplayBuffer():
 
                     self.experience_replay_buffer[self.index] = (observation, action, tf.cast(reward, tf.float32), next_observation)
                     self.set_index()
+                    counter += 1
 
     def preprocessing(self):
         """

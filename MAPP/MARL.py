@@ -3,8 +3,10 @@ import numpy as np
 import tensorflow as tf
 from Experience_Replay_Buffer import ExperienceReplayBuffer
 from MARL_Agent import MARL_Agent
+import training_setup
 import time
 
+'''
 # Hyperparameters
 num_actions = 6  # env.action_space shouldn't we then also set use_full_action_space=False ?
 NUM_TRAINING_SAMPLES = 1000  # amount of training samples
@@ -23,6 +25,12 @@ MIN_EPSILON = 0.001
 # instantiate environment
 #env = pong_v3.env(num_players=2, render_mode="human", max_cycles=125000)
 env = pong_v3.env(num_players=2)
+'''
+num_actions, ERP_size, num_training_samples, EPISODES, epsilon, EPSILON_DECAY, MIN_EPSILON, MODEL_NAME, UPDATE_TARGET_EVERY, AGGREGATE_STATS_EVERY, MIN_REWARD = training_setup.hyperparameter_settings(ERP_size=2_000)
+print("hyperparameters loaded")
+
+env = training_setup.create_env()
+print("environment created")
 
 # instantiate and fill ERP
 ERP = ExperienceReplayBuffer(size=ERP_size)
@@ -31,10 +39,12 @@ print(f"ERP filled with {ERP.size} random samples")
 
 # instantiate q_network
 Q_net = MARL_Agent(env, ERP, num_actions, MODEL_NAME, epsilon=epsilon, min_epsilon=MIN_EPSILON, epsilon_decay_value=EPSILON_DECAY)
+print("Qnet created")
 
 # store rewards
 reward_per_episode = []
 
+print("starting training loop")
 # training loop
 for episode in range(EPISODES):
 
@@ -56,18 +66,19 @@ for episode in range(EPISODES):
             next_observation, _, _, _, _ = env.last()
             next_observation = ERP.normalizing(next_observation)
 
+            # store new values in ERP
             ERP.experience_replay_buffer[ERP.index] = (observation, action, tf.cast(reward, tf.float32), next_observation)
             ERP.set_index()
 
+            # decay Epsilon
             Q_net.epsilon_decay()
 
+            # store rewards for later logging
             episode_reward[a % 2] = episode_reward[a % 2] + reward  # only works with two agents
             a += 1
 
-
-    # skip the training until the ERP is filled with enough values
-    if ERP.size >= MINIMUM_ERP_SIZE:
-        Q_net.training()
+            # do a training step
+            Q_net.training()
 
     # the target network only gets updated every few episodes
     if not episode % UPDATE_TARGET_EVERY:
@@ -77,6 +88,7 @@ for episode in range(EPISODES):
     # so we need to update this at some point
     # with parameter sharing, it shouldn't make a difference which agent got which reward
     # might still be good to catch irregularities
+    #FIXME: taking the mean always results in a reward of zero, as it is a zero-sum-game
     reward_per_episode.append(np.mean(episode_reward))
 
     # every n episodes this safes the average and min / max rewards of these episodes to the tensorboard
@@ -87,10 +99,11 @@ for episode in range(EPISODES):
         max_reward = max(reward_per_episode[-AGGREGATE_STATS_EVERY:])
         Q_net.tensorboard.update_stats(rewards_avg=average_reward, reward_min=min_reward, reward_max=max_reward)
 
+        #FIXME: saving was done over the in-build function of the Sequential model, but we don't use that anymore
         # Save model, but only when min reward is greater or equal a set value
-        if min_reward >= MIN_REWARD:
-            Q_net.model.save(
-                f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+        #if min_reward >= MIN_REWARD:
+        #    Q_net.network.save(
+        #        f'models/{MODEL_NAME}__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
 
     # we should consider printing only the average of the rewards
     print(f'done with epsiode {episode} with reward {episode_reward}')
