@@ -2,7 +2,8 @@ from Experience_Replay_Buffer import ExperienceReplayBuffer
 from Agent import Agent
 import time
 from training_setup import hyperparameter_settings, create_env
-import numpy as np
+import tensorflow as tf
+import datetime
 
 
 # instantiate environment
@@ -10,6 +11,11 @@ env = create_env()
 
 # set Hyperparameters
 num_actions, ERP_size, EPISODES, epsilon, MODEL_NAME, AGGREGATE_STATS_EVERY, MIN_REWARD, UPDATE_TARGET_EVERY = hyperparameter_settings()
+
+# create summary writer for logging
+current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+train_log_path = f"logs/{MODEL_NAME}/{current_time}"
+summary_writer = tf.summary.create_file_writer(train_log_path)
 
 #instantiate and fill ERP
 ERP =  ExperienceReplayBuffer(size = ERP_size)
@@ -21,6 +27,7 @@ Q_net = Agent(env, ERP, MODEL_NAME)
 Q_net.update_delay_target_network()
 
 reward_per_episode = []
+loss = []
 
 
 for episode in range(EPISODES):
@@ -33,17 +40,28 @@ for episode in range(EPISODES):
     # collect experiences and train the Agent
     while truncated == False and terminated == False:
         observation, terminated, truncated = Q_net.play(observation)
-        Q_net.training()
+        metrics = Q_net.training()
 
     # logging 
     reward_per_episode.append(Q_net.reward_of_game)
+
+    for (key, value) in metrics.items():
+        if key == 'loss':
+            loss.append(value)
 
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
         average_reward = sum(reward_per_episode[-AGGREGATE_STATS_EVERY:]) / len(reward_per_episode[-AGGREGATE_STATS_EVERY:])
         min_reward = min(reward_per_episode[-AGGREGATE_STATS_EVERY:])
         max_reward = max(reward_per_episode[-AGGREGATE_STATS_EVERY:])
-        Q_net.tensorboard.update_stats(rewards_avg=average_reward, reward_min=min_reward, reward_max=max_reward,
-                                        epsilon=epsilon)
+        average_loss = sum(loss[-AGGREGATE_STATS_EVERY:]) / len(loss[-AGGREGATE_STATS_EVERY:])
+        #Q_net.tensorboard.update_stats(rewards_avg=average_reward, reward_min=min_reward, reward_max=max_reward,
+        #                                epsilon=epsilon)
+
+        with summary_writer.as_default():
+            tf.summary.scalar(f"average_reward", reward_per_episode, step=episode)
+            tf.summary.scalar(f"min_reward", min_reward, step=episode)
+            tf.summary.scalar(f"max_reward", max_reward, step=episode)
+            tf.summary.scalar(f"loss", average_loss, step=episode)
 
         # Save model, but only when min reward is greater or equal a set value
         if min_reward >= MIN_REWARD:

@@ -19,7 +19,7 @@ class Agent(tf.keras.layers.Layer):
         self.num_actions = num_actions
 
         self.metrics_list = [tf.keras.metrics.Mean(name="loss")] 
-        self.tensorboard = ModifiedTensorBoard.ModifiedTensorBoard(log_dir="logs/{}-{}".format(model_name, int(time.time())))
+        #self.tensorboard = ModifiedTensorBoard.ModifiedTensorBoard(log_dir="logs/{}-{}".format(model_name, int(time.time())))
 
     def call(self, x, training = False):
         """
@@ -104,7 +104,8 @@ class Agent(tf.keras.layers.Layer):
         for batch in data:
             observation, action, reward, next_observation = batch
             q_target = self.q_target(reward, next_observation)
-            self.network.train(observation, action, q_target)
+            metrics = self.network.train(observation, action, q_target)
+        return metrics
 
 
     def update_delay_target_network(self):
