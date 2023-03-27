@@ -2,7 +2,7 @@ from pettingzoo.atari import pong_v3
 import supersuit
 
 
-def hyperparameter_settings(num_actions = 6, ERP_size = 10_000, num_training_samples = 32, EPISODES = 20_000,
+def hyperparameter_settings(num_actions = 6, ERP_size = 20_000, num_training_samples = 32, EPISODES = 20_000,
                             epsilon = 1, EPSILON_DECAY = 0.999985, MIN_EPSILON = 0.01,
                             MODEL_NAME = "MultiPong", UPDATE_TARGET_EVERY = 5, AGGREGATE_STATS_EVERY = 10, MIN_REWARD = 0):
     '''

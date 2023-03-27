@@ -1,8 +1,6 @@
 import tensorflow as tf
 import numpy as np
 from MARL_DQN import MARL_DQN
-import ModifiedTensorBoard
-import time
 
 class MARL_Agent(tf.keras.Model):
     def __init__(self, environment, ERP, num_actions, model_name, epsilon = 1, min_epsilon = 0.001, epsilon_decay_value = 0.999985):
@@ -22,7 +20,6 @@ class MARL_Agent(tf.keras.Model):
         self.num_actions = num_actions
         self.metrics_list = [tf.keras.metrics.Mean(name="loss")]
 
-        self.tensorboard = ModifiedTensorBoard.ModifiedTensorBoard(log_dir="logs/{}-{}".format(model_name, int(time.time())))
 
     def __call__(self, x, training = False):
         """
@@ -63,27 +60,6 @@ class MARL_Agent(tf.keras.Model):
         self.delay_target_network.set_weights(self.network.get_weights())
 
 
-    #FIXME: the docstring is wrong (from an old version)
-    def q_target_array(self, ERP, sample_number, discount_factor = 0.95):
-        """
-        Calculates Q-target (expected reward) with Delay-Target-Network.
-
-        Parameters:
-            sample (list): list of lists each filled with [observation_t, action, reward, observation]
-            discount_factor (float): to set the influence of future rewards
-
-        Returns:
-            q_target (float): expected reward from "optimal" action
-        """
-        observation = ERP.observation[sample_number]
-        reward = ERP.reward[sample_number]
-
-        q_values = self.delay_target_network(observation)
-        max_q_value = tf.math.top_k(q_values, k=1, sorted=True)
-        q_target = reward + discount_factor * max_q_value.values.numpy()
-        return q_target
-
-
     def q_target(self, reward, next_observation, discount_factor = 0.99):
         """
         Calculates Q-target (expected reward) with Delay-Target-Network.
@@ -111,16 +87,13 @@ class MARL_Agent(tf.keras.Model):
         for batch in data:
             observation, action, reward, next_observation = batch
             q_target = self.q_target(reward, next_observation)
-            self.network.train(observation, action, q_target)
+            metrics = self.network.train(observation, action, q_target)
+        return metrics
 
 
     def epsilon_decay(self):
         """
         Decay epsilon.
-
-        Parameters:
-            MIN_EPSILON (float): a threshold which epsilon may not fall below
-            EPSILON_DECAY (float): the factor epsilon is decayed with
         """
         if self.epsilon > self.min_epsilon:
             self.epsilon *= self.epsilon_decay_value
