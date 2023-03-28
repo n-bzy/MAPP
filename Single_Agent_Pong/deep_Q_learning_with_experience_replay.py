@@ -42,12 +42,13 @@ for episode in range(EPISODES):
         observation, terminated, truncated = Q_net.play(observation)
         metrics = Q_net.training()
 
+        for (key, value) in metrics.items():
+            if key == 'loss':
+                loss.append(value)
+
     # logging 
     reward_per_episode.append(Q_net.reward_of_game)
 
-    for (key, value) in metrics.items():
-        if key == 'loss':
-            loss.append(value)
 
     if not episode % AGGREGATE_STATS_EVERY or episode == 1:
         average_reward = sum(reward_per_episode[-AGGREGATE_STATS_EVERY:]) / len(reward_per_episode[-AGGREGATE_STATS_EVERY:])
@@ -58,7 +59,7 @@ for episode in range(EPISODES):
         #                                epsilon=epsilon)
 
         with summary_writer.as_default():
-            tf.summary.scalar(f"average_reward", reward_per_episode, step=episode)
+            tf.summary.scalar(f"average_reward", average_reward, step=episode)
             tf.summary.scalar(f"min_reward", min_reward, step=episode)
             tf.summary.scalar(f"max_reward", max_reward, step=episode)
             tf.summary.scalar(f"loss", average_loss, step=episode)
